@@ -1,19 +1,31 @@
 import Dexie, { Table } from 'dexie';
-import type { Trip, DayPlan, Activity, UserSettings } from '../types';
+import type { Trip, DayPlan, Activity, UserSettings, Expense, PackingItem } from '../types';
 
 export class EscapadesDatabase extends Dexie {
   trips!: Table<Trip>;
   days!: Table<DayPlan>;
   activities!: Table<Activity>;
   settings!: Table<UserSettings>;
+  expenses!: Table<Expense>;
+  packingItems!: Table<PackingItem>;
 
   constructor() {
     super('EscapadesDB');
+    
     this.version(1).stores({
       trips: '++id, destination, status, startDate',
       days: '++id, tripId, dayNumber',
       activities: '++id, dayId, time, category, completed, order',
       settings: '++id'
+    });
+
+    this.version(2).stores({
+      trips: '++id, destination, status, startDate',
+      days: '++id, tripId, dayNumber',
+      activities: '++id, dayId, time, category, completed, order',
+      settings: '++id',
+      expenses: '++id, tripId, category, date',
+      packingItems: '++id, tripId, category, packed'
     });
   }
 }
@@ -30,7 +42,6 @@ export async function initSeedData() {
   const envProvider = (import.meta.env.VITE_DEFAULT_LLM_PROVIDER as any) || (envMistralKey ? 'mistral' : envGeminiKey ? 'gemini' : 'mistral');
   const envApiKey = envProvider === 'gemini' ? envGeminiKey : envMistralKey;
 
-  // Initial Settings seed or update API key if empty
   if (settingsCount === 0) {
     await db.settings.add({
       llmProvider: envProvider,
@@ -40,7 +51,6 @@ export async function initSeedData() {
       theme: 'dark'
     });
   } else if (envApiKey) {
-    // If settings exist but API key is empty, populate from .env
     const firstSetting = await db.settings.toCollection().first();
     if (firstSetting && (!firstSetting.apiKey || firstSetting.apiKey.trim() === '')) {
       await db.settings.update(firstSetting.id!, {
@@ -62,6 +72,8 @@ export async function initSeedData() {
     coverImage: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop",
     vibe: "nature_adventure",
     notes: "Week-end détente entre lac, vieille ville et balade en vélo autour du lac.",
+    budgetGoal: 350,
+    currency: "EUR",
     status: "active",
     createdAt: new Date().toISOString()
   });
@@ -83,6 +95,22 @@ export async function initSeedData() {
     summary: "Grand tour du lac (40km voie verte), pause baignade à Talloires et apéro panorama.",
     themeColor: "#30D158"
   });
+
+  // Seed Expenses
+  await db.expenses.bulkAdd([
+    { tripId: trip1Id as number, title: "Location de Vélos", amount: 45, currency: "EUR", category: "transport", date: "2026-08-15" },
+    { tripId: trip1Id as number, title: "Fondue Savoyarde Chez Mamie Lise", amount: 62, currency: "EUR", category: "resto", date: "2026-08-14" },
+    { tripId: trip1Id as number, title: "Billets Palais de l'Isle", amount: 8, currency: "EUR", category: "monument" as any, date: "2026-08-14" }
+  ]);
+
+  // Seed Packing Items
+  await db.packingItems.bulkAdd([
+    { tripId: trip1Id as number, title: "Maillot de bain", category: "clothes", packed: true },
+    { tripId: trip1Id as number, title: "Lunettes de soleil & Crème solaire", category: "outdoor", packed: true },
+    { tripId: trip1Id as number, title: "Gourde isotherme", category: "outdoor", packed: false },
+    { tripId: trip1Id as number, title: "Batterie externe / Chargeur", category: "tech", packed: false },
+    { tripId: trip1Id as number, title: "Passeport / Carte d'identité", category: "documents", packed: true }
+  ]);
 
   // Activities for Day 1
   await db.activities.bulkAdd([
@@ -202,6 +230,8 @@ export async function initSeedData() {
     coverImage: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1000&auto=format&fit=crop",
     vibe: "cultural",
     notes: "Voyage contemplatif au moment du feuillage des érables (Momiji).",
+    budgetGoal: 1500,
+    currency: "EUR",
     status: "planned",
     createdAt: new Date().toISOString()
   });

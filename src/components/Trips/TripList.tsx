@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/database';
 import { useApp } from '../../context/AppContext';
-import { Trip, VibeStyle } from '../../types';
-import { Plus, MapPin, Calendar, Sparkles, Trash2, ChevronRight, CheckCircle2 } from 'lucide-react';
+import type { Trip, VibeStyle } from '../../types';
+import { BudgetTracker } from '../Budget/BudgetTracker';
+import { PackingChecklist } from '../Packing/PackingChecklist';
+import { Plus, MapPin, Calendar, Sparkles, Trash2, ChevronRight, PieChart, Luggage, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const vibeLabels: Record<VibeStyle, { label: string; icon: string }> = {
   balanced: { label: 'Équilibré', icon: '⚖️' },
@@ -21,6 +23,7 @@ export const TripList: React.FC = () => {
 
   const [filter, setFilter] = useState<'all' | 'active' | 'planned' | 'completed'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [expandedTripId, setExpandedTripId] = useState<number | null>(null);
 
   // New Trip Form State
   const [title, setTitle] = useState('');
@@ -48,12 +51,13 @@ export const TripList: React.FC = () => {
       coverImage: coverImage || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
       vibe,
       notes,
+      budgetGoal: 500,
+      currency: 'EUR',
       status: 'planned',
       createdAt: new Date().toISOString()
     });
 
-    // Create 1 initial day
-    const dayId = await db.days.add({
+    await db.days.add({
       tripId: newTripId as number,
       dayNumber: 1,
       date: startDate,
@@ -75,6 +79,8 @@ export const TripList: React.FC = () => {
 
       await db.activities.where('dayId').anyOf(dayIds).delete();
       await db.days.where('tripId').equals(id).delete();
+      await db.expenses.where('tripId').equals(id).delete();
+      await db.packingItems.where('tripId').equals(id).delete();
       await db.trips.delete(id);
       showToast('Escapade supprimée');
     }
@@ -87,7 +93,7 @@ export const TripList: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-100 font-display">Mes Escapades</h2>
-          <p className="text-xs text-slate-400">Gérez vos carnets de voyage & plannings</p>
+          <p className="text-xs text-slate-400">Gérez vos voyages, budget & checklists valise</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -130,69 +136,90 @@ export const TripList: React.FC = () => {
       </div>
 
       {/* Trip Cards Grid */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {filteredTrips && filteredTrips.length > 0 ? (
           filteredTrips.map((trip) => {
             const vibeInfo = vibeLabels[trip.vibe] || vibeLabels.balanced;
+            const isExpanded = expandedTripId === trip.id;
 
             return (
-              <div
-                key={trip.id}
-                onClick={() => {
-                  setActiveTripId(trip.id!);
-                  setActiveTab('timeline');
-                }}
-                className="group relative rounded-3xl overflow-hidden glass-panel border border-slate-800/80 hover:border-blue-500/40 p-4 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.98]"
-              >
-                {/* Background image preview */}
+              <div key={trip.id} className="space-y-3">
                 <div
-                  className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity"
-                  style={{ backgroundImage: `url(${trip.coverImage})` }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
+                  onClick={() => {
+                    setActiveTripId(trip.id!);
+                    setActiveTab('timeline');
+                  }}
+                  className="group relative rounded-3xl overflow-hidden glass-panel border border-slate-800/80 hover:border-blue-500/40 p-4 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.99]"
+                >
+                  <div
+                    className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity"
+                    style={{ backgroundImage: `url(${trip.coverImage})` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
 
-                <div className="relative z-10 flex items-start justify-between">
-                  <div className="space-y-1.5 max-w-[80%]">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-200 bg-slate-900/80 border border-slate-700 px-2.5 py-0.5 rounded-full">
-                        <MapPin className="w-3 h-3 text-rose-400" />
-                        {trip.destination}
-                      </span>
-                      <span className="text-[10px] text-slate-300 bg-slate-900/80 px-2 py-0.5 rounded-full">
-                        {vibeInfo.icon} {vibeInfo.label}
-                      </span>
+                  <div className="relative z-10 flex items-start justify-between">
+                    <div className="space-y-1.5 max-w-[80%]">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-200 bg-slate-900/80 border border-slate-700 px-2.5 py-0.5 rounded-full">
+                          <MapPin className="w-3 h-3 text-rose-400" />
+                          {trip.destination}
+                        </span>
+                        <span className="text-[10px] text-slate-300 bg-slate-900/80 px-2 py-0.5 rounded-full">
+                          {vibeInfo.icon} {vibeInfo.label}
+                        </span>
+                      </div>
+
+                      <h3 className="font-extrabold text-base text-white tracking-tight font-display">
+                        {trip.title}
+                      </h3>
+
+                      {trip.notes && (
+                        <p className="text-xs text-slate-400 line-clamp-1">
+                          {trip.notes}
+                        </p>
+                      )}
                     </div>
 
-                    <h3 className="font-extrabold text-base text-white tracking-tight font-display">
-                      {trip.title}
-                    </h3>
-
-                    {trip.notes && (
-                      <p className="text-xs text-slate-400 line-clamp-1">
-                        {trip.notes}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedTripId(isExpanded ? null : trip.id!);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-900/80"
+                        title="Ouvrir budget et valise"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteTrip(trip.id!, e)}
+                        className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg bg-slate-900/80 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  <button
-                    onClick={(e) => handleDeleteTrip(trip.id!, e)}
-                    className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-slate-900/80 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="relative z-10 mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1 text-slate-400">
+                      <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                      {trip.startDate}
+                    </span>
+
+                    <span className="flex items-center gap-1 text-blue-400 font-semibold group-hover:translate-x-1 transition-transform">
+                      Voir la timeline
+                      <ChevronRight className="w-4 h-4" />
+                    </span>
+                  </div>
                 </div>
 
-                <div className="relative z-10 mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                    {trip.startDate}
-                  </span>
-
-                  <span className="flex items-center gap-1 text-blue-400 font-semibold group-hover:translate-x-1 transition-transform">
-                    Ouvrir la timeline
-                    <ChevronRight className="w-4 h-4" />
-                  </span>
-                </div>
+                {/* Expanded Budget & Packing Drawer */}
+                {isExpanded && (
+                  <div className="space-y-3 pl-2 border-l-2 border-blue-500/40 animate-fadeIn">
+                    <BudgetTracker trip={trip} />
+                    <PackingChecklist trip={trip} />
+                  </div>
+                )}
               </div>
             );
           })
@@ -262,28 +289,6 @@ export const TripList: React.FC = () => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono focus:border-blue-500 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Image de couverture (URL)</label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={coverImage}
-                  onChange={(e) => setCoverImage(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Notes / Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Objectif, ambiance..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none resize-none"
-                />
               </div>
 
               <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">

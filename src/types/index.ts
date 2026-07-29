@@ -43,8 +43,37 @@ export interface Trip {
   coverImage: string;
   vibe: VibeStyle;
   notes?: string;
+  budgetGoal?: number;
+  currency?: string;
   status: TripStatus;
   createdAt: string;
+}
+
+export interface Expense {
+  id?: number;
+  tripId: number;
+  activityId?: number;
+  title: string;
+  amount: number;
+  currency: string;
+  category: 'resto' | 'transport' | 'hotel' | 'activity' | 'shopping' | 'other';
+  date: string;
+}
+
+export interface PackingItem {
+  id?: number;
+  tripId: number;
+  title: string;
+  category: 'documents' | 'clothes' | 'tech' | 'toiletries' | 'outdoor' | 'other';
+  packed: boolean;
+}
+
+export interface WeatherData {
+  temperature: number;
+  weatherCode: number;
+  weatherDescription: string;
+  rainProbability?: number;
+  icon: string;
 }
 
 export interface UserSettings {

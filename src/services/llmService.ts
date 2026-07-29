@@ -1,4 +1,4 @@
-import type { LLMPlanRequest, UserSettings } from '../types';
+import type { LLMPlanRequest, UserSettings, Activity } from '../types';
 
 export interface GeneratedDayOutput {
   dayNumber: number;
@@ -31,7 +31,6 @@ export async function generateItineraryWithLLM(
   request: LLMPlanRequest,
   settings: UserSettings
 ): Promise<GeneratedTripResponse> {
-  // If API key is provided and valid, call real API
   if (settings.apiKey && settings.apiKey.trim().length > 3) {
     try {
       return await callProviderAPI(request, settings);
@@ -40,12 +39,162 @@ export async function generateItineraryWithLLM(
     }
   }
 
-  // Otherwise, use high-quality offline AI simulator
   return simulateAIGeneration(request);
 }
 
 // -------------------------------------------------------------
-// Universal Provider Router (Mistral, Gemini, OpenAI, Custom)
+// AI Magic Re-Plan / Weather Adaptor ("Il pleut !", "Trop chargé", etc.)
+// -------------------------------------------------------------
+export async function reOptimizeDayWithLLM(
+  destination: string,
+  dayTitle: string,
+  currentActivities: Activity[],
+  replanMode: 'rain' | 'lighter' | 'epicurean',
+  settings: UserSettings
+): Promise<{ title: string; summary: string; activities: GeneratedDayOutput['activities'] }> {
+  if (!settings.apiKey || settings.apiKey.trim().length < 4) {
+    // Offline / Demo Fallback for Re-Plan
+    await new Promise((res) => setTimeout(res, 1200));
+
+    if (replanMode === 'rain') {
+      return {
+        title: `${dayTitle} (Adapté Pluie 🌧️)`,
+        summary: "Programme ajusté : activités en intérieur, musées, passages couverts et pause chocolat chaud.",
+        activities: [
+          {
+            time: "10:00",
+            title: "Visite du Musée National & Expositions",
+            description: "Au sec ! Découverte des galeries d'art et chef-d'œuvres locaux.",
+            category: "monument",
+            locationName: `Musée des Beaux-Arts, ${destination}`,
+            durationMinutes: 120,
+            priceEstimate: "12 €",
+            completed: false
+          },
+          {
+            time: "12:30",
+            title: "Déjeuner sous les arcades",
+            description: "Bistrot chaleureux à l'abri des intempéries.",
+            category: "restaurant",
+            locationName: `Passage Couvert, ${destination}`,
+            durationMinutes: 90,
+            priceEstimate: "26 €",
+            completed: false
+          },
+          {
+            time: "15:00",
+            title: "Salon de Thé & Pâtisserie artisanale",
+            description: "Pause gourmande et chocolat chaud onctueux.",
+            category: "restaurant",
+            locationName: `Salon de Thé, ${destination}`,
+            durationMinutes: 75,
+            completed: false
+          },
+          {
+            time: "17:30",
+            title: "Séance Cinéma ou Spectacle",
+            description: "Divertissement culturel au chaud.",
+            category: "activity",
+            locationName: `Théâtre / Cinéma, ${destination}`,
+            durationMinutes: 120,
+            completed: false
+          }
+        ]
+      };
+    } else {
+      return {
+        title: `${dayTitle} (Mode Détente 🍷)`,
+        summary: "Rythme plus doux avec temps libre et sélection de lieux épicuriens.",
+        activities: currentActivities.map(a => ({
+          time: a.time,
+          title: a.title,
+          description: a.description,
+          category: a.category,
+          locationName: a.locationName,
+          address: a.address,
+          durationMinutes: a.durationMinutes,
+          priceEstimate: a.priceEstimate,
+          completed: a.completed
+        }))
+      };
+    }
+  }
+
+  let promptConstraint = "";
+  if (replanMode === 'rain') {
+    promptConstraint = "ATTENTION IL PLEUT ! Remplace TOUTES les activités extérieures par des activités 100% en intérieur (musées, galeries couvertes, salons de thé, ateliers, dégustations).";
+  } else if (replanMode === 'lighter') {
+    promptConstraint = "Le planning est trop chargé ! Ne garde que 3 étapes clés aérées avec beaucoup de temps libre et de pauses.";
+  } else {
+    promptConstraint = "Mode Épicurien ! Ajoute une dégustation de vins/spécialités, un resto réputé et un super bar pour la soirée.";
+  }
+
+  const userPrompt = `Ré-optimise cette journée à ${destination}.
+Titre actuel: ${dayTitle}
+Activités actuelles: ${JSON.stringify(currentActivities.map(a => ({ time: a.time, title: a.title, loc: a.locationName })))}
+
+Contrainte de ré-optimisation: ${promptConstraint}
+
+Réponds EXCLUSIVEMENT avec ce JSON structuré :
+{
+  "title": "Nouveau titre de la journée",
+  "summary": "Nouveau résumé explicatif",
+  "activities": [
+    {
+      "time": "10:00",
+      "title": "Titre activité",
+      "description": "Description",
+      "category": "monument",
+      "locationName": "Lieu",
+      "durationMinutes": 90,
+      "priceEstimate": "15 €"
+    }
+  ]
+}`;
+
+  let endpoint = 'https://api.openai.com/v1/chat/completions';
+  let modelName = settings.modelName;
+
+  if (settings.llmProvider === 'mistral') {
+    endpoint = 'https://api.mistral.ai/v1/chat/completions';
+    if (!modelName) modelName = 'mistral-small-latest';
+  } else if (settings.llmProvider === 'gemini') {
+    endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    if (!modelName) modelName = 'gemini-1.5-flash';
+  }
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${settings.apiKey}`
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: [
+        { role: 'system', content: 'Tu es un expert en voyages. Réponds toujours avec un JSON valide.' },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erreur Re-Plan (${res.status}): ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  let content = data.choices[0].message.content;
+  if (content.includes('```')) {
+    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+  }
+
+  return JSON.parse(content);
+}
+
+// -------------------------------------------------------------
+// Universal Provider Router
 // -------------------------------------------------------------
 async function callProviderAPI(
   req: LLMPlanRequest,
@@ -120,7 +269,7 @@ Réponds EXCLUSIVEMENT avec cet objet JSON structuré (sans aucun texte autour) 
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      response_format: settings.llmProvider === 'mistral' ? { type: "json_object" } : { type: "json_object" }
+      response_format: { type: "json_object" }
     })
   });
 
@@ -132,7 +281,6 @@ Réponds EXCLUSIVEMENT avec cet objet JSON structuré (sans aucun texte autour) 
   const data = await res.json();
   let content = data.choices[0].message.content;
 
-  // Clean potential markdown wrap ```json ... ```
   if (content.includes('```')) {
     content = content.replace(/```json/g, '').replace(/```/g, '').trim();
   }
@@ -153,8 +301,6 @@ async function simulateAIGeneration(req: LLMPlanRequest): Promise<GeneratedTripR
   else if (destLower.includes('rome')) coverImage = "https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop";
   else if (destLower.includes('tokyo') || destLower.includes('japon')) coverImage = "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1000&auto=format&fit=crop";
   else if (destLower.includes('barcelone') || destLower.includes('barcelona')) coverImage = "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?q=80&w=1000&auto=format&fit=crop";
-  else if (destLower.includes('londres') || destLower.includes('london')) coverImage = "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?q=80&w=1000&auto=format&fit=crop";
-  else if (destLower.includes('nice') || destLower.includes('côte d\'azur')) coverImage = "https://images.unsplash.com/photo-1533105079780-92b9be482077?q=80&w=1000&auto=format&fit=crop";
 
   const days: GeneratedDayOutput[] = [];
 
