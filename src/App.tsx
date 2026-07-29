@@ -25,33 +25,48 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Check URL parameters for scanned QR Code trip import ?qrd=... or ?importTrip=...
+  // Check URL parameters for scanned QR Code trip import ?cloneTitle=... or ?qrd=... or ?importTrip=...
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const qrdParam = params.get('qrd');
-    const importTripParam = params.get('importTrip');
+    const cloneTitle = params.get('cloneTitle');
+    const dest = params.get('dest');
+    const vibe = params.get('vibe');
+    const acts = params.get('acts');
 
-    if (qrdParam) {
-      try {
-        const decoded = decodeURIComponent(qrdParam);
-        const parsed = JSON.parse(decoded);
-        if (parsed.t) {
-          setImportedTripTitle(parsed.t || 'Nouvelle Escapade');
-          setImportDataRaw(parsed);
+    if (cloneTitle) {
+      setImportedTripTitle(cloneTitle);
+      setImportDataRaw({
+        title: cloneTitle,
+        destination: dest || 'Destination',
+        vibe: vibe || 'balanced',
+        actsList: acts ? acts.split('|') : []
+      });
+    } else {
+      const qrdParam = params.get('qrd');
+      const importTripParam = params.get('importTrip');
+
+      if (qrdParam) {
+        try {
+          const decoded = decodeURIComponent(qrdParam);
+          const parsed = JSON.parse(decoded);
+          if (parsed.t) {
+            setImportedTripTitle(parsed.t || 'Nouvelle Escapade');
+            setImportDataRaw(parsed);
+          }
+        } catch (err) {
+          console.warn('Failed to parse qrd param:', err);
         }
-      } catch (err) {
-        console.warn('Failed to parse qrd param:', err);
-      }
-    } else if (importTripParam) {
-      try {
-        const decoded = decodeURIComponent(escape(atob(importTripParam)));
-        const parsed = JSON.parse(decoded);
-        if (parsed.t) {
-          setImportedTripTitle(parsed.t.title || parsed.t || 'Nouvelle Escapade');
-          setImportDataRaw(parsed);
+      } else if (importTripParam) {
+        try {
+          const decoded = decodeURIComponent(escape(atob(importTripParam)));
+          const parsed = JSON.parse(decoded);
+          if (parsed.t) {
+            setImportedTripTitle(parsed.t.title || parsed.t || 'Nouvelle Escapade');
+            setImportDataRaw(parsed);
+          }
+        } catch (err) {
+          console.warn('Failed to parse importTrip param:', err);
         }
-      } catch (err) {
-        console.warn('Failed to parse importTrip param:', err);
       }
     }
   }, []);
@@ -74,51 +89,57 @@ const AppContent: React.FC = () => {
     if (!importDataRaw) return;
 
     try {
-      const title = importDataRaw.t?.title || importDataRaw.t || 'Escapade Importée';
-      const dest = importDataRaw.t?.destination || importDataRaw.d || 'Destination';
+      const title = importDataRaw.title || importDataRaw.t?.title || importDataRaw.t || 'Escapade Importée';
+      const dest = importDataRaw.destination || importDataRaw.t?.destination || importDataRaw.d || 'Destination';
 
       const newTripId = await db.trips.add({
         title,
         destination: dest,
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0],
-        coverImage: importDataRaw.t?.coverImage || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
-        vibe: importDataRaw.v || importDataRaw.t?.vibe || 'balanced',
+        coverImage: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
+        vibe: importDataRaw.vibe || importDataRaw.v || 'balanced',
         currency: 'EUR',
         status: 'active',
         createdAt: new Date().toISOString()
       });
 
-      const inputDays = importDataRaw.days || importDataRaw.d || [{ dayNumber: 1, title: 'Jour 1: Découverte' }];
+      const dayId = await db.days.add({
+        tripId: newTripId as number,
+        dayNumber: 1,
+        date: new Date().toISOString().split('T')[0],
+        title: `Jour 1: Découverte de ${dest}`,
+        summary: `Journée clonée par QR Code pour ${dest}.`
+      });
 
-      for (let idx = 0; idx < inputDays.length; idx++) {
-        const d = inputDays[idx];
-        const dayId = await db.days.add({
-          tripId: newTripId as number,
-          dayNumber: d.n || d.dayNumber || idx + 1,
-          date: new Date().toISOString().split('T')[0],
-          title: d.t || d.title || `Jour ${idx + 1}`,
-          summary: d.s || d.summary || ''
-        });
-
-        const dayActs = importDataRaw.acts || importDataRaw.a || [];
-        const actsToAdd = dayActs.map((a: any, aIdx: number) => ({
+      const actsList = importDataRaw.actsList || [];
+      if (actsList.length > 0) {
+        const actsToAdd = actsList.map((actName: string, idx: number) => ({
           dayId: dayId as number,
-          time: a.tm || a.time || '10:00',
-          title: a.t || a.title || 'Étape',
-          description: a.description || '',
-          category: a.c || a.category || 'activity',
-          locationName: a.l || a.locationName || dest,
-          address: a.address || '',
-          durationMinutes: a.durationMinutes || 60,
-          priceEstimate: a.pr || a.priceEstimate || 'Gratuit',
+          time: `${9 + idx * 2}:00`,
+          title: actName,
+          description: `Étape du parcours à ${dest}`,
+          category: idx === 1 ? 'restaurant' : 'monument',
+          locationName: actName,
+          durationMinutes: 60,
+          priceEstimate: 'Gratuit',
           completed: false,
-          order: aIdx + 1
+          order: idx + 1
         }));
-
-        if (actsToAdd.length > 0) {
-          await db.activities.bulkAdd(actsToAdd);
-        }
+        await db.activities.bulkAdd(actsToAdd);
+      } else {
+        await db.activities.add({
+          dayId: dayId as number,
+          time: '10:00',
+          title: `Arrivée à ${dest}`,
+          description: 'Première étape du séjour.',
+          category: 'monument',
+          locationName: dest,
+          durationMinutes: 60,
+          priceEstimate: 'Gratuit',
+          completed: false,
+          order: 1
+        });
       }
 
       setActiveTripId(newTripId as number);

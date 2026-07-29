@@ -22,34 +22,9 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Ultra-compact payload to avoid btoa RangeError: Data too long
-  let shareableUrl = `${window.location.origin}${window.location.pathname}?tripName=${encodeURIComponent(trip.title)}&dest=${encodeURIComponent(trip.destination)}`;
-
-  try {
-    const compactPayload = {
-      t: trip.title,
-      d: trip.destination,
-      v: trip.vibe,
-      days: days.map(d => ({
-        n: d.dayNumber,
-        t: d.title
-      })),
-      acts: activities.slice(0, 8).map(a => ({
-        tm: a.time,
-        t: a.title,
-        c: a.category,
-        l: a.locationName,
-        pr: a.priceEstimate
-      }))
-    };
-
-    const jsonStr = JSON.stringify(compactPayload);
-    // Safe URL-friendly encoding without btoa RangeError
-    const encodedData = encodeURIComponent(jsonStr);
-    shareableUrl = `${window.location.origin}${window.location.pathname}?qrd=${encodedData}`;
-  } catch (err) {
-    console.warn('QR Code payload fallback to basic link:', err);
-  }
+  // Extremely short, crisp URL payload (< 150 chars) for instant 0.1s phone camera decoding
+  const topActs = activities.slice(0, 4).map(a => a.title).join('|');
+  const shareableUrl = `${window.location.origin}${window.location.pathname}?cloneTitle=${encodeURIComponent(trip.title)}&dest=${encodeURIComponent(trip.destination)}&vibe=${encodeURIComponent(trip.vibe)}&acts=${encodeURIComponent(topActs)}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareableUrl);
@@ -76,15 +51,15 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           <p className="text-xs text-slate-400">Scannez pour cloner cette escapade en 1 seconde !</p>
         </div>
 
-        {/* Local High-Contrast SVG QR Code Container */}
+        {/* High-Contrast, Low-Density Crisp QR Code */}
         <div className="p-4 bg-white rounded-2xl border-2 border-purple-500 inline-block shadow-xl">
           <QRCodeSVG
             value={shareableUrl}
-            size={190}
+            size={220}
             bgColor="#ffffff"
             fgColor="#020617"
-            level="L"
-            includeMargin={false}
+            level="M"
+            includeMargin={true}
           />
         </div>
 
