@@ -12,40 +12,50 @@ import { Sparkles, Bell, Download, Check } from 'lucide-react';
 const AppContent: React.FC = () => {
   const { activeTab, setActiveTab, activeTripId, setActiveTripId, showToast } = useApp();
   const [importedTripTitle, setImportedTripTitle] = useState<string | null>(null);
-  const [importDataRaw, setImportDataRaw] = useState<string | null>(null);
+  const [importDataRaw, setImportDataRaw] = useState<any | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<boolean>(false);
 
   useEffect(() => {
     initSeedData();
   }, []);
 
-  // Check for Notifications permission
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'granted') {
       setNotificationStatus(true);
     }
   }, []);
 
-  // Check URL parameters for scanned QR Code trip import ?importTrip=...
+  // Check URL parameters for scanned QR Code trip import ?qrd=... or ?importTrip=...
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const qrdParam = params.get('qrd');
     const importTripParam = params.get('importTrip');
 
-    if (importTripParam) {
+    if (qrdParam) {
+      try {
+        const decoded = decodeURIComponent(qrdParam);
+        const parsed = JSON.parse(decoded);
+        if (parsed.t) {
+          setImportedTripTitle(parsed.t || 'Nouvelle Escapade');
+          setImportDataRaw(parsed);
+        }
+      } catch (err) {
+        console.warn('Failed to parse qrd param:', err);
+      }
+    } else if (importTripParam) {
       try {
         const decoded = decodeURIComponent(escape(atob(importTripParam)));
         const parsed = JSON.parse(decoded);
-        if (parsed.t && parsed.d) {
-          setImportedTripTitle(parsed.t.title || 'Nouvelle Escapade');
-          setImportDataRaw(decoded);
+        if (parsed.t) {
+          setImportedTripTitle(parsed.t.title || parsed.t || 'Nouvelle Escapade');
+          setImportDataRaw(parsed);
         }
       } catch (err) {
-        console.error('Failed to parse imported QR trip:', err);
+        console.warn('Failed to parse importTrip param:', err);
       }
     }
   }, []);
 
-  // Check for step reminders every 5 minutes
   useEffect(() => {
     const checkReminders = async () => {
       if (!activeTripId) return;
@@ -64,52 +74,57 @@ const AppContent: React.FC = () => {
     if (!importDataRaw) return;
 
     try {
-      const parsed = JSON.parse(importDataRaw);
+      const title = importDataRaw.t?.title || importDataRaw.t || 'Escapade Importée';
+      const dest = importDataRaw.t?.destination || importDataRaw.d || 'Destination';
+
       const newTripId = await db.trips.add({
-        title: parsed.t.title,
-        destination: parsed.t.destination,
+        title,
+        destination: dest,
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0],
-        coverImage: parsed.t.coverImage || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
-        vibe: parsed.t.vibe || 'balanced',
+        coverImage: importDataRaw.t?.coverImage || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
+        vibe: importDataRaw.v || importDataRaw.t?.vibe || 'balanced',
         currency: 'EUR',
         status: 'active',
         createdAt: new Date().toISOString()
       });
 
-      for (let idx = 0; idx < parsed.d.length; idx++) {
-        const d = parsed.d[idx];
+      const inputDays = importDataRaw.days || importDataRaw.d || [{ dayNumber: 1, title: 'Jour 1: Découverte' }];
+
+      for (let idx = 0; idx < inputDays.length; idx++) {
+        const d = inputDays[idx];
         const dayId = await db.days.add({
           tripId: newTripId as number,
-          dayNumber: d.dayNumber || idx + 1,
+          dayNumber: d.n || d.dayNumber || idx + 1,
           date: new Date().toISOString().split('T')[0],
-          title: d.title,
-          summary: d.summary
+          title: d.t || d.title || `Jour ${idx + 1}`,
+          summary: d.s || d.summary || ''
         });
 
-        const dayActs = parsed.a || [];
+        const dayActs = importDataRaw.acts || importDataRaw.a || [];
         const actsToAdd = dayActs.map((a: any, aIdx: number) => ({
           dayId: dayId as number,
-          time: a.time || '10:00',
-          title: a.title,
+          time: a.tm || a.time || '10:00',
+          title: a.t || a.title || 'Étape',
           description: a.description || '',
-          category: a.category || 'activity',
-          locationName: a.locationName || parsed.t.destination,
+          category: a.c || a.category || 'activity',
+          locationName: a.l || a.locationName || dest,
           address: a.address || '',
           durationMinutes: a.durationMinutes || 60,
-          priceEstimate: a.priceEstimate || 'Gratuit',
+          priceEstimate: a.pr || a.priceEstimate || 'Gratuit',
           completed: false,
           order: aIdx + 1
         }));
 
-        await db.activities.bulkAdd(actsToAdd);
+        if (actsToAdd.length > 0) {
+          await db.activities.bulkAdd(actsToAdd);
+        }
       }
 
       setActiveTripId(newTripId as number);
       setImportedTripTitle(null);
       setImportDataRaw(null);
       
-      // Clean URL parameter
       window.history.replaceState({}, document.title, window.location.pathname);
 
       showToast('Escapade clonée et importée avec succès ! 🎉');
@@ -146,7 +161,6 @@ const AppContent: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Notification Bell Button */}
             <button
               onClick={handleToggleNotifications}
               className={`p-2 rounded-2xl border transition-all text-xs font-semibold flex items-center gap-1 ${

@@ -22,31 +22,34 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Create compact payload for QR Code URL
-  const exportPayload = {
-    t: { title: trip.title, destination: trip.destination, vibe: trip.vibe, coverImage: trip.coverImage },
-    d: days.map(d => ({ dayNumber: d.dayNumber, title: d.title, summary: d.summary })),
-    a: activities.map(a => ({
-      time: a.time,
-      title: a.title,
-      description: a.description,
-      category: a.category,
-      locationName: a.locationName,
-      address: a.address,
-      durationMinutes: a.durationMinutes,
-      priceEstimate: a.priceEstimate
-    }))
-  };
+  // Ultra-compact payload to avoid btoa RangeError: Data too long
+  let shareableUrl = `${window.location.origin}${window.location.pathname}?tripName=${encodeURIComponent(trip.title)}&dest=${encodeURIComponent(trip.destination)}`;
 
-  const jsonStr = JSON.stringify(exportPayload);
-  let base64Data = '';
   try {
-    base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
-  } catch (e) {
-    base64Data = btoa(jsonStr.substring(0, 500));
-  }
+    const compactPayload = {
+      t: trip.title,
+      d: trip.destination,
+      v: trip.vibe,
+      days: days.map(d => ({
+        n: d.dayNumber,
+        t: d.title
+      })),
+      acts: activities.slice(0, 8).map(a => ({
+        tm: a.time,
+        t: a.title,
+        c: a.category,
+        l: a.locationName,
+        pr: a.priceEstimate
+      }))
+    };
 
-  const shareableUrl = `${window.location.origin}${window.location.pathname}?importTrip=${encodeURIComponent(base64Data)}`;
+    const jsonStr = JSON.stringify(compactPayload);
+    // Safe URL-friendly encoding without btoa RangeError
+    const encodedData = encodeURIComponent(jsonStr);
+    shareableUrl = `${window.location.origin}${window.location.pathname}?qrd=${encodedData}`;
+  } catch (err) {
+    console.warn('QR Code payload fallback to basic link:', err);
+  }
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareableUrl);
@@ -77,7 +80,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
         <div className="p-4 bg-white rounded-2xl border-2 border-purple-500 inline-block shadow-xl">
           <QRCodeSVG
             value={shareableUrl}
-            size={200}
+            size={190}
             bgColor="#ffffff"
             fgColor="#020617"
             level="L"
