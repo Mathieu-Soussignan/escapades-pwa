@@ -1,384 +1,410 @@
-import type { LLMPlanRequest, UserSettings, Activity } from '../types';
+import type { LLMPlanRequest, UserSettings, Activity, ActivityCategory } from '../types';
 
-export interface GeneratedDayOutput {
-  dayNumber: number;
+export interface GeneratedDayPlan {
   title: string;
   summary: string;
-  activities: {
-    time: string;
-    title: string;
-    description: string;
-    category: 'monument' | 'restaurant' | 'nature' | 'transport' | 'hotel' | 'activity' | 'viewpoint' | 'shopping' | 'nightlife';
-    locationName: string;
-    address?: string;
-    latitude?: number;
-    longitude?: number;
-    durationMinutes?: number;
-    priceEstimate?: string;
-    completed?: boolean;
-  }[];
+  activities: Omit<Activity, 'id' | 'dayId'>[];
 }
 
-export interface GeneratedTripResponse {
-  title: string;
+export interface GeneratedTripPlan {
   destination: string;
-  vibeSummary: string;
+  title: string;
+  summary: string;
   coverImage: string;
-  days: GeneratedDayOutput[];
+  days: GeneratedDayPlan[];
 }
 
-export async function generateItineraryWithLLM(
-  request: LLMPlanRequest,
+/**
+  Main Entrypoint to generate trip or day plans via mistral, gemini, openai, or offline simulator
+ */
+export async function generateTripWithLLM(
+  req: LLMPlanRequest,
   settings: UserSettings
-): Promise<GeneratedTripResponse> {
-  if (settings.apiKey && settings.apiKey.trim().length > 3) {
-    try {
-      return await callProviderAPI(request, settings);
-    } catch (err) {
-      console.warn('Real API call failed, falling back to smart AI simulator:', err);
-    }
+): Promise<GeneratedTripPlan> {
+  const provider = settings.llmProvider || 'mistral';
+  const apiKey = settings.apiKey?.trim() || '';
+
+  // If no API key is provided, use the Offline Smart AI Simulator fallback
+  if (!apiKey && provider !== 'custom') {
+    return simulateOfflineTripGeneration(req);
   }
 
-  return simulateAIGeneration(request);
+  const prompt = buildLLMPrompt(req);
+
+  try {
+    if (provider === 'mistral') {
+      return await fetchMistralAI(prompt, settings.modelName || 'mistral-small-latest', apiKey);
+    } else if (provider === 'gemini') {
+      return await fetchGeminiAI(prompt, settings.modelName || 'gemini-1.5-flash', apiKey);
+    } else if (provider === 'openai') {
+      return await fetchOpenAI(prompt, settings.modelName || 'gpt-4o', apiKey);
+    } else if (provider === 'custom' && settings.customEndpoint) {
+      return await fetchCustomLLM(prompt, settings.customEndpoint, apiKey);
+    } else {
+      return simulateOfflineTripGeneration(req);
+    }
+  } catch (err) {
+    console.warn('LLM API Call failed, falling back to smart offline simulator:', err);
+    return simulateOfflineTripGeneration(req);
+  }
 }
 
-// -------------------------------------------------------------
-// Custom AI Prompt Editor for Day Itinerary
-// -------------------------------------------------------------
+/**
+  Custom Prompt Instruction day editor (e.g. "Remplace le resto par une pizzeria")
+ */
 export async function customPromptEditDayWithLLM(
   destination: string,
   dayTitle: string,
   currentActivities: Activity[],
-  userPromptInstruction: string,
+  userInstruction: string,
   settings: UserSettings
-): Promise<{ title: string; summary: string; activities: GeneratedDayOutput['activities'] }> {
-  if (!settings.apiKey || settings.apiKey.trim().length < 4) {
-    // Offline / Demo Fallback for Custom Prompt
-    await new Promise((res) => setTimeout(res, 1200));
+): Promise<GeneratedDayPlan> {
+  const provider = settings.llmProvider || 'mistral';
+  const apiKey = settings.apiKey?.trim() || '';
 
-    return {
-      title: `${dayTitle} (Ajusté par AI ✨)`,
-      summary: `Journée modifiée selon votre demande : "${userPromptInstruction}"`,
-      activities: currentActivities.map((a, idx) => ({
-        time: a.time,
-        title: idx === 1 ? `[Ajusté] ${a.title}` : a.title,
-        description: `${a.description} (Modifié selon : ${userPromptInstruction})`,
-        category: a.category,
-        locationName: a.locationName,
-        address: a.address,
-        durationMinutes: a.durationMinutes,
-        priceEstimate: a.priceEstimate,
-        completed: a.completed
-      }))
-    };
+  if (!apiKey && provider !== 'custom') {
+    return simulateDayCustomEdit(dayTitle, currentActivities, userInstruction);
   }
 
-  const systemPrompt = `Tu es un assistant voyageur AI sur-mesure. 
-Ton rôle est de modifier et ajuster le déroulé d'une journée selon l'instruction précise de l'utilisateur.
-Pour chaque activité, fournis une catégorie parmi ['monument', 'restaurant', 'nature', 'transport', 'hotel', 'activity', 'viewpoint', 'shopping', 'nightlife'].
-Réponds EXCLUSIVEMENT avec un objet JSON structuré (aucun texte autour).`;
+  const prompt = `
+Tu es un guide de voyage expert et réactif.
+Destination: ${destination}
+Journée actuelle (${dayTitle}) avec les activités actuelles:
+${JSON.stringify(currentActivities.map(a => ({ time: a.time, title: a.title, category: a.category, locationName: a.locationName, priceEstimate: a.priceEstimate })))}
 
-  const userPrompt = `Ajuste et modifie cette journée d'escapade à ${destination}.
-Titre actuel: ${dayTitle}
-Activités actuelles: ${JSON.stringify(currentActivities.map(a => ({ time: a.time, title: a.title, category: a.category, loc: a.locationName, desc: a.description })))}
+Instruction personnalisée de l'utilisateur: "${userInstruction}"
 
-INSTRUCTION PRÉCISE DE L'UTILISATEUR POUR MODIFIER LA JOURNÉE:
-"${userPromptInstruction}"
-
-Applique cette modification avec précision tout en gardant une journée cohérente, réaliste et agréable.
-
-Format JSON attendu :
+Réorganise et adapte cette journée en respectant impérativement l'instruction.
+Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte (sans aucun markdown \`\`\`json) :
 {
-  "title": "Titre mis à jour",
-  "summary": "Nouveau résumé mis à jour de la journée",
+  "title": "${dayTitle}",
+  "summary": "Résumé mis à jour de la journée d'après l'instruction...",
   "activities": [
     {
-      "time": "10:00",
-      "title": "Titre activité",
-      "description": "Description mise à jour",
-      "category": "restaurant",
-      "locationName": "Nom du lieu",
+      "time": "09:30",
+      "title": "Nom court de l'activité",
+      "description": "Description captivante de 1-2 phrases",
+      "category": "monument" | "restaurant" | "nature" | "activity" | "shopping" | "hotel" | "transport",
+      "locationName": "Nom exact du lieu pour GPS",
       "address": "Adresse approximative",
-      "durationMinutes": 90,
-      "priceEstimate": "25 €"
+      "durationMinutes": 60,
+      "priceEstimate": "15 €" ou "Gratuit"
     }
   ]
-}`;
+}
+`;
 
-  let endpoint = 'https://api.openai.com/v1/chat/completions';
-  let modelName = settings.modelName;
+  try {
+    let rawText = '';
+    if (provider === 'mistral') {
+      rawText = await callOpenAICompatibleEndpoint('https://api.mistral.ai/v1/chat/completions', apiKey, settings.modelName || 'mistral-small-latest', prompt);
+    } else if (provider === 'gemini') {
+      rawText = await callOpenAICompatibleEndpoint('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', apiKey, settings.modelName || 'gemini-1.5-flash', prompt);
+    } else if (provider === 'openai') {
+      rawText = await callOpenAICompatibleEndpoint('https://api.openai.com/v1/chat/completions', apiKey, settings.modelName || 'gpt-4o', prompt);
+    } else {
+      return simulateDayCustomEdit(dayTitle, currentActivities, userInstruction);
+    }
 
-  if (settings.llmProvider === 'mistral') {
-    endpoint = 'https://api.mistral.ai/v1/chat/completions';
-    if (!modelName) modelName = 'mistral-small-latest';
-  } else if (settings.llmProvider === 'gemini') {
-    endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    if (!modelName) modelName = 'gemini-1.5-flash';
+    const cleaned = cleanJsonResponse(rawText);
+    const parsed = JSON.parse(cleaned);
+    return {
+      title: parsed.title || dayTitle,
+      summary: parsed.summary || 'Journée ré-optimisée.',
+      activities: (parsed.activities || []).map((act: any) => ({
+        time: act.time || '10:00',
+        title: act.title || 'Activité',
+        description: act.description || '',
+        category: sanitizeCategory(act.category),
+        locationName: act.locationName || destination,
+        address: act.address || '',
+        durationMinutes: act.durationMinutes || 60,
+        priceEstimate: act.priceEstimate || 'Gratuit',
+        completed: false,
+        order: 1
+      }))
+    };
+  } catch (err) {
+    console.error('Custom Prompt LLM edit failed:', err);
+    return simulateDayCustomEdit(dayTitle, currentActivities, userInstruction);
   }
-
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${settings.apiKey}`
-    },
-    body: JSON.stringify({
-      model: modelName,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      response_format: { type: "json_object" }
-    })
-  });
-
-  if (!res.ok) {
-    throw new Error(`Erreur Modification AI (${res.status}): ${await res.text()}`);
-  }
-
-  const data = await res.json();
-  let content = data.choices[0].message.content;
-  if (content.includes('```')) {
-    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-  }
-
-  return JSON.parse(content);
 }
 
-// -------------------------------------------------------------
-// AI Magic Re-Plan / Weather Adaptor
-// -------------------------------------------------------------
+/**
+  Quick Re-Optimizer for preset modes: "rain", "lighter", "epicurean"
+ */
 export async function reOptimizeDayWithLLM(
   destination: string,
   dayTitle: string,
   currentActivities: Activity[],
-  replanMode: 'rain' | 'lighter' | 'epicurean',
+  mode: 'rain' | 'lighter' | 'epicurean',
   settings: UserSettings
-): Promise<{ title: string; summary: string; activities: GeneratedDayOutput['activities'] }> {
-  let promptConstraint = "";
-  if (replanMode === 'rain') {
-    promptConstraint = "ATTENTION IL PLEUT ! Remplace TOUTES les activités extérieures par des activités 100% en intérieur (musées, galeries couvertes, salons de thé, ateliers, dégustations).";
-  } else if (replanMode === 'lighter') {
-    promptConstraint = "Le planning est trop chargé ! Ne garde que 3 étapes clés aérées avec beaucoup de temps libre et de pauses.";
-  } else {
-    promptConstraint = "Mode Épicurien ! Ajoute une dégustation de vins/spécialités, un resto réputé et un super bar pour la soirée.";
-  }
+): Promise<GeneratedDayPlan> {
+  const instructionMap = {
+    rain: "Il pleut des cordes ! Remplace toutes les activités extérieures (parcs, plages, balades) par des activités couvertes confortables (musées, ateliers, salons de thé, passages couverts).",
+    lighter: "Le programme est trop chargé et fatigant ! Réduis le nombre d'étapes de moitié, espace les horaires et ajoute des pauses détente calmes.",
+    epicurean: "Transforme cette journée en mode 100% Épicurien et Gourmand ! Ajoute des dégustations de spécialités locales, les meilleures adresses de restos et cafés typiques."
+  };
 
-  return customPromptEditDayWithLLM(destination, dayTitle, currentActivities, promptConstraint, settings);
+  return customPromptEditDayWithLLM(
+    destination,
+    dayTitle,
+    currentActivities,
+    instructionMap[mode] || instructionMap.rain,
+    settings
+  );
 }
 
-// -------------------------------------------------------------
-// Universal Provider Router
-// -------------------------------------------------------------
-async function callProviderAPI(
-  req: LLMPlanRequest,
-  settings: UserSettings
-): Promise<GeneratedTripResponse> {
-  let endpoint = 'https://api.openai.com/v1/chat/completions';
-  let modelName = settings.modelName;
+/* ---------------- Helper API Call Functions ---------------- */
 
-  if (settings.llmProvider === 'mistral') {
-    endpoint = 'https://api.mistral.ai/v1/chat/completions';
-    if (!modelName) modelName = 'mistral-small-latest';
-  } else if (settings.llmProvider === 'gemini') {
-    endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    if (!modelName) modelName = 'gemini-1.5-flash';
-  } else if (settings.llmProvider === 'custom') {
-    endpoint = settings.customEndpoint || 'http://localhost:11434/v1/chat/completions';
-  } else {
-    if (!modelName) modelName = 'gpt-4o';
-  }
+function sanitizeCategory(cat?: string): ActivityCategory {
+  const valid: ActivityCategory[] = ['monument', 'culture', 'restaurant', 'cafe', 'nature', 'activity', 'shopping', 'hotel', 'lodging', 'transport', 'viewpoint', 'nightlife', 'relax'];
+  const lower = (cat || '').toLowerCase() as ActivityCategory;
+  if (valid.includes(lower)) return lower;
+  if (lower.includes('resto') || lower.includes('food')) return 'restaurant';
+  if (lower.includes('parc') || lower.includes('rando')) return 'nature';
+  return 'activity';
+}
 
-  const systemPrompt = `Tu es un expert mondial de l'organisation de voyages et escapades sur-mesure. 
-Ta mission est de générer un itinéraire structuré sous forme de JSON strict.
-Pour chaque activité, fournis une catégorie parmi ['monument', 'restaurant', 'nature', 'transport', 'hotel', 'activity', 'viewpoint', 'shopping', 'nightlife'].
-Donne des noms de lieux exacts et des coordonnées approximatives (latitude, longitude) quand c'est possible.`;
+function buildLLMPrompt(req: LLMPlanRequest): string {
+  const daysCount = req.daysCount || req.durationDays || 2;
+  const vibe = req.vibe || 'balanced';
+  const budget = req.budget || 'medium';
+  const travelers = req.travelers || 'couple';
 
-  const userPrompt = `Génère une escapade de ${req.durationDays} jour(s) à ${req.destination}.
-Ambiance / Vibe: ${req.vibe}
-Centres d'intérêt: ${req.interests.join(', ')}
-Budget: ${req.budget}
-Mode de transport: ${req.transportMode}
-${req.customNotes ? `Notes particulières: ${req.customNotes}` : ''}
+  return `
+Tu es le meilleur guide touristique au monde et un créateur d'itinéraires sur mesure.
+Génère un séjour exceptionnel et réaliste pour:
+- Destination: ${req.destination}
+- Durée: ${daysCount} jours
+- Style/Vibe: ${vibe}
+- Budget: ${budget}
+- Type de voyageurs: ${travelers}
+${req.interests && req.interests.length > 0 ? `- Intérêts: ${req.interests.join(', ')}` : ''}
+${req.customNotes ? `- Remarques: ${req.customNotes}` : ''}
 
-Réponds EXCLUSIVEMENT avec cet objet JSON structuré :
+Consignes impératives :
+1. Propose des lieux réels, précis avec leurs vraies adresses approximatives.
+2. Pour chaque jour, inclus 3 à 5 étapes chronologiques bien espacées (matin, midi, après-midi, soir).
+3. Estime un prix réaliste pour chaque étape (ex: "28 €", "7 €", "Gratuit").
+4. Renvoie STRICTEMENT un JSON valide au format exact suivant sans aucun texte autour :
+
 {
-  "title": "Titre inspirant de l'escapade",
   "destination": "${req.destination}",
-  "vibeSummary": "Un court paragraphe qui résume l'esprit du voyage",
-  "coverImage": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+  "title": "Titre évocateur et attrayant de l'escapade",
+  "summary": "Court résumé inspirant du séjour",
+  "coverImage": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
   "days": [
     {
-      "dayNumber": 1,
-      "title": "Jour 1: Titre du jour",
-      "summary": "Résumé de la journée",
+      "title": "Jour 1: Intitulé du jour",
+      "summary": "Résumé de la journée...",
       "activities": [
         {
           "time": "09:30",
-          "title": "Titre activité",
-          "description": "Description détaillée",
-          "category": "monument",
-          "locationName": "Nom du lieu",
-          "address": "Adresse approximative",
-          "latitude": 48.8566,
-          "longitude": 2.3522,
-          "durationMinutes": 90,
+          "title": "Nom de l'étape",
+          "description": "Description détaillée de 2 phrases",
+          "category": "monument" | "restaurant" | "nature" | "activity" | "shopping" | "hotel" | "transport",
+          "locationName": "Nom exact du lieu",
+          "address": "Adresse ou quartier",
+          "durationMinutes": 60,
           "priceEstimate": "15 €"
         }
       ]
     }
   ]
-}`;
+}
+`;
+}
 
-  const res = await fetch(endpoint, {
+async function callOpenAICompatibleEndpoint(
+  url: string,
+  apiKey: string,
+  model: string,
+  prompt: string
+): Promise<string> {
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${settings.apiKey}`
+      'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: modelName,
+      model: model,
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'system', content: 'Tu es un générateur d\'itinéraires de voyage qui répond uniquement en JSON strict.' },
+        { role: 'user', content: prompt }
       ],
-      temperature: 0.7,
-      response_format: { type: "json_object" }
+      temperature: 0.7
     })
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Erreur API ${settings.llmProvider.toUpperCase()} (${res.status}): ${errorText}`);
+    const errText = await res.text();
+    throw new Error(`API error ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
-  let content = data.choices[0].message.content;
-
-  if (content.includes('```')) {
-    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-  }
-
-  return JSON.parse(content);
+  return data.choices?.[0]?.message?.content || '';
 }
 
-// -------------------------------------------------------------
-// Offline AI Simulator
-// -------------------------------------------------------------
-async function simulateAIGeneration(req: LLMPlanRequest): Promise<GeneratedTripResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 1800));
+async function fetchMistralAI(prompt: string, model: string, apiKey: string): Promise<GeneratedTripPlan> {
+  const text = await callOpenAICompatibleEndpoint('https://api.mistral.ai/v1/chat/completions', apiKey, model, prompt);
+  return parseTripPlanJSON(text);
+}
 
-  const destLower = req.destination.toLowerCase();
+async function fetchGeminiAI(prompt: string, model: string, apiKey: string): Promise<GeneratedTripPlan> {
+  const text = await callOpenAICompatibleEndpoint('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', apiKey, model, prompt);
+  return parseTripPlanJSON(text);
+}
+
+async function fetchOpenAI(prompt: string, model: string, apiKey: string): Promise<GeneratedTripPlan> {
+  const text = await callOpenAICompatibleEndpoint('https://api.openai.com/v1/chat/completions', apiKey, model, prompt);
+  return parseTripPlanJSON(text);
+}
+
+async function fetchCustomLLM(prompt: string, endpoint: string, apiKey: string): Promise<GeneratedTripPlan> {
+  const text = await callOpenAICompatibleEndpoint(endpoint, apiKey || 'dummy', 'local-model', prompt);
+  return parseTripPlanJSON(text);
+}
+
+function cleanJsonResponse(raw: string): string {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```/, '').replace(/```$/, '');
+  }
+  return cleaned.trim();
+}
+
+function parseTripPlanJSON(raw: string): GeneratedTripPlan {
+  const cleaned = cleanJsonResponse(raw);
+  const parsed = JSON.parse(cleaned);
   
-  let coverImage = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1000&auto=format&fit=crop";
-  if (destLower.includes('paris')) coverImage = "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=1000&auto=format&fit=crop";
-  else if (destLower.includes('rome')) coverImage = "https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1000&auto=format&fit=crop";
-  else if (destLower.includes('tokyo') || destLower.includes('japon')) coverImage = "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1000&auto=format&fit=crop";
-  else if (destLower.includes('barcelone') || destLower.includes('barcelona')) coverImage = "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?q=80&w=1000&auto=format&fit=crop";
+  return {
+    destination: parsed.destination || 'Destination',
+    title: parsed.title || 'Escapade sur mesure',
+    summary: parsed.summary || 'Un super séjour préparé pour vous.',
+    coverImage: parsed.coverImage || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop',
+    days: (parsed.days || []).map((d: any, idx: number) => ({
+      title: d.title || `Jour ${idx + 1}`,
+      summary: d.summary || '',
+      activities: (d.activities || []).map((a: any) => ({
+        time: a.time || '10:00',
+        title: a.title || 'Étape',
+        description: a.description || '',
+        category: sanitizeCategory(a.category),
+        locationName: a.locationName || 'Lieu',
+        address: a.address || '',
+        durationMinutes: a.durationMinutes || 60,
+        priceEstimate: a.priceEstimate || 'Gratuit',
+        completed: false,
+        order: 1
+      }))
+    }))
+  };
+}
 
-  const days: GeneratedDayOutput[] = [];
+/* ---------------- Smart Offline Simulator Fallback ---------------- */
 
-  for (let i = 1; i <= req.durationDays; i++) {
-    if (i === 1) {
-      days.push({
-        dayNumber: 1,
-        title: `Jour 1: Première immersion à ${req.destination}`,
-        summary: `Arrivée, découverte des ruelles emblématiques, pause gourmande et panorama.`,
-        activities: [
-          {
-            time: "09:30",
-            title: "Installation & Café de bienvenue",
-            description: "Prise de possession du logement, rafraîchissement et premier expresso.",
-            category: "hotel",
-            locationName: `Centre ville de ${req.destination}`,
-            durationMinutes: 60,
-            completed: false
-          },
-          {
-            time: "11:00",
-            title: "Flânerie dans le quartier historique",
-            description: "Boutiques d'artisans locaux, architecture remarquable et pépites cachées.",
-            category: "monument",
-            locationName: `Quartier Historique, ${req.destination}`,
-            durationMinutes: 120,
-            completed: false
-          },
-          {
-            time: "13:00",
-            title: "Déjeuner de spécialités locales",
-            description: "Dégustation des produits de saison et plats traditionnels.",
-            category: "restaurant",
-            locationName: `Bistrot du Marché, ${req.destination}`,
-            durationMinutes: 90,
-            priceEstimate: "25 €",
-            completed: false
-          },
-          {
-            time: "15:30",
-            title: "Balade & Grand Parc Botanique",
-            description: "Moment de détente au calme, promenade ombragée.",
-            category: "nature",
-            locationName: `Jardin Public de ${req.destination}`,
-            durationMinutes: 90,
-            completed: false
-          },
-          {
-            time: "19:00",
-            title: "Apéro Sunset & Panorama",
-            description: "Verre de vin ou cocktail sur un spot panoramique.",
-            category: "viewpoint",
-            locationName: `Belvédère de ${req.destination}`,
-            durationMinutes: 75,
-            completed: false
-          }
-        ]
-      });
-    } else {
-      days.push({
-        dayNumber: i,
-        title: `Jour ${i}: Incontournables & Pépites locales`,
-        summary: `Exploration des trésors culturels et nature.`,
-        activities: [
-          {
-            time: "10:00",
-            title: "Visite culturelle ou promenade guidée",
-            description: "Découverte des chef-d'œuvres locaux.",
-            category: "monument",
-            locationName: `Centre Culturel de ${req.destination}`,
-            durationMinutes: 120,
-            priceEstimate: "14 €",
-            completed: false
-          },
-          {
-            time: "13:00",
-            title: "Déjeuner Gourmand",
-            description: "Recettes régionales et ambiance chaleureuse.",
-            category: "restaurant",
-            locationName: `Bistrot de ${req.destination}`,
-            durationMinutes: 90,
-            priceEstimate: "28 €",
-            completed: false
-          },
-          {
-            time: "16:00",
-            title: "Dernières emplettes & Artisanat local",
-            description: "Souvenirs, spécialités gourmandes et créations uniques.",
-            category: "shopping",
-            locationName: `Marché Artisanal de ${req.destination}`,
-            durationMinutes: 90,
-            completed: false
-          }
-        ]
-      });
+function simulateOfflineTripGeneration(req: LLMPlanRequest): GeneratedTripPlan {
+  const daysCount = req.daysCount || req.durationDays || 2;
+  const dest = req.destination || 'Annecy';
+
+  const sampleDays: GeneratedDayPlan[] = [];
+
+  for (let i = 1; i <= daysCount; i++) {
+    sampleDays.push({
+      title: `Jour ${i}: Exploration & Incontournables de ${dest}`,
+      summary: `Une journée équilibrée combinant visites culturelles, gastronomie locale et moments de détente.`,
+      activities: [
+        {
+          time: "09:30",
+          title: `Petit-déjeuner & Café au cœur de ${dest}`,
+          description: `Démarrage de la journée avec un expresso en terrasse et viennoiseries artisanales.`,
+          category: "restaurant",
+          locationName: `Centre Historique de ${dest}`,
+          address: `Quai principal, ${dest}`,
+          durationMinutes: 45,
+          priceEstimate: "12 €",
+          completed: false,
+          order: 1
+        },
+        {
+          time: "11:00",
+          title: `Visite du Monument & Musée Majeur`,
+          description: `Découverte du patrimoine et des secrets d'histoire de la ville.`,
+          category: "monument",
+          locationName: `Musée Principal de ${dest}`,
+          address: `Place du Château, ${dest}`,
+          durationMinutes: 90,
+          priceEstimate: "8 €",
+          completed: false,
+          order: 2
+        },
+        {
+          time: "13:00",
+          title: `Déjeuner Gastronomique Régional`,
+          description: `Dégustation de spécialités et produits locaux de saison.`,
+          category: "restaurant",
+          locationName: `Restaurant Le Terroir, ${dest}`,
+          address: `Rue de la Paix, ${dest}`,
+          durationMinutes: 75,
+          priceEstimate: "28 €",
+          completed: false,
+          order: 3
+        },
+        {
+          time: "15:30",
+          title: `Balade Nature & Point de Vue Panoramique`,
+          description: `Promenade relaxante pour capturer de superbes photos de la destination.`,
+          category: "nature",
+          locationName: `Parc Panoramique de ${dest}`,
+          address: `Belvédère, ${dest}`,
+          durationMinutes: 90,
+          priceEstimate: "Gratuit",
+          completed: false,
+          order: 4
+        }
+      ]
+    });
+  }
+
+  return {
+    destination: dest,
+    title: `Échappée Belle à ${dest}`,
+    summary: `Un itinéraire sur mesure de ${daysCount} jours conçu pour une expérience inoubliable à ${dest}.`,
+    coverImage: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
+    days: sampleDays
+  };
+}
+
+function simulateDayCustomEdit(dayTitle: string, currentActivities: Activity[], instruction: string): GeneratedDayPlan {
+  const updatedActs = currentActivities.map(a => ({
+    time: a.time,
+    title: a.title,
+    description: a.description,
+    category: a.category,
+    locationName: a.locationName,
+    address: a.address,
+    durationMinutes: a.durationMinutes,
+    priceEstimate: a.priceEstimate,
+    completed: false,
+    order: a.order
+  }));
+
+  if (instruction.toLowerCase().includes('pizzeria') || instruction.toLowerCase().includes('pizza')) {
+    const restoIdx = updatedActs.findIndex(a => a.category === 'restaurant');
+    if (restoIdx !== -1) {
+      updatedActs[restoIdx].title = "Déjeuner en Pizzeria Italienne Artisanal";
+      updatedActs[restoIdx].description = "Pizzas au four à bois et spécialités de pâtes fraîches.";
+      updatedActs[restoIdx].priceEstimate = "18 €";
     }
   }
 
   return {
-    title: `Escapade sur-mesure à ${req.destination}`,
-    destination: req.destination,
-    vibeSummary: `Une escapade conçue pour vivre des moments uniques.`,
-    coverImage,
-    days
+    title: dayTitle,
+    summary: `Journée ajustée : "${instruction}"`,
+    activities: updatedActs
   };
 }

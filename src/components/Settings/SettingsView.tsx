@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, initSeedData } from '../../db/database';
 import { useApp } from '../../context/AppContext';
 import type { GPSApp } from '../../types';
-import { Key, Navigation, Download, Upload, RefreshCw, Smartphone, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Key, Navigation, Download, Upload, RefreshCw, Smartphone, ShieldCheck, ExternalLink, Ticket } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
   const { showToast } = useApp();
@@ -14,6 +14,7 @@ export const SettingsView: React.FC = () => {
   const [modelName, setModelName] = useState('mistral-small-latest');
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [defaultGPS, setDefaultGPS] = useState<GPSApp>('google_maps');
+  const [affiliatePartnerId, setAffiliatePartnerId] = useState('');
   const [activeOsGuide, setActiveOsGuide] = useState<'ios' | 'android'>('ios');
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export const SettingsView: React.FC = () => {
       setModelName(settings.modelName || 'mistral-small-latest');
       setCustomEndpoint(settings.customEndpoint || '');
       setDefaultGPS(settings.defaultGPS || 'google_maps');
+      setAffiliatePartnerId(settings.affiliatePartnerId || '');
     }
   }, [settings]);
 
@@ -45,7 +47,8 @@ export const SettingsView: React.FC = () => {
         apiKey,
         modelName,
         customEndpoint,
-        defaultGPS
+        defaultGPS,
+        affiliatePartnerId
       });
     } else {
       await db.settings.add({
@@ -54,6 +57,7 @@ export const SettingsView: React.FC = () => {
         modelName,
         customEndpoint,
         defaultGPS,
+        affiliatePartnerId,
         theme: 'dark'
       });
     }
@@ -119,8 +123,8 @@ export const SettingsView: React.FC = () => {
       {/* Header Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-display">Réglages & Sécurité</h2>
-          <p className="text-xs text-slate-400">Clés API privées, GPS & Installation Mobile</p>
+          <h2 className="text-xl font-bold text-slate-100 font-display">Réglages & Monétisation</h2>
+          <p className="text-xs text-slate-400">Clés API privées, Affiliation Touristique & GPS</p>
         </div>
       </div>
 
@@ -203,6 +207,26 @@ export const SettingsView: React.FC = () => {
 
         <hr className="border-slate-800" />
 
+        {/* Affiliate Partner ID Section */}
+        <div>
+          <label className="block font-bold text-slate-200 mb-1 flex items-center gap-1.5 text-xs">
+            <Ticket className="w-4 h-4 text-emerald-400" />
+            Monétisation : ID Partenaire Affilié
+          </label>
+          <p className="text-[11px] text-slate-400 mb-2">
+            Insérez votre ID de partenaire GetYourGuide / Travelpayouts / Booking.com pour toucher des commissions automatiques sur les réservations de vos utilisateurs.
+          </p>
+          <input
+            type="text"
+            placeholder="Ex: MATHIEU_ESCAPADES_2026"
+            value={affiliatePartnerId}
+            onChange={(e) => setAffiliatePartnerId(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-slate-100 font-mono focus:border-emerald-500 focus:outline-none text-xs"
+          />
+        </div>
+
+        <hr className="border-slate-800" />
+
         {/* API LLM Configuration */}
         <div>
           <label className="block font-bold text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
@@ -239,7 +263,6 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Model Name Selector */}
             <div>
               <label className="block text-slate-400 text-[11px] mb-1 font-medium">Modèle spécifique</label>
               {llmProvider === 'mistral' ? (
@@ -273,7 +296,6 @@ export const SettingsView: React.FC = () => {
               )}
             </div>
 
-            {/* API Key Input */}
             <div>
               <label className="block text-slate-400 text-[11px] mb-1 font-medium">
                 Votre Clé API {llmProvider.toUpperCase()}
@@ -289,7 +311,6 @@ export const SettingsView: React.FC = () => {
                 className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-slate-100 font-mono focus:border-purple-500 focus:outline-none text-xs"
               />
 
-              {/* Helpful Tips per Provider & Security Notice */}
               <div className="mt-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-300 space-y-1.5">
                 {llmProvider === 'mistral' && (
                   <p className="flex items-center gap-1 text-slate-300">

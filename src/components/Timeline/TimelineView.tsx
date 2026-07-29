@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, initSeedData } from '../../db/database';
+import { db } from '../../db/database';
 import { useApp } from '../../context/AppContext';
 import { ActivityCard } from './ActivityCard';
 import { ActivityModal } from './ActivityModal';
@@ -8,6 +8,7 @@ import { MapView } from '../Map/MapView';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
+import { getBookingUrl } from '../../services/affiliateService';
 import type { Activity, WeatherData } from '../../types';
 import { 
   Plus, 
@@ -24,7 +25,9 @@ import {
   Utensils, 
   Send, 
   MessageSquare, 
-  Wallet
+  Wallet,
+  Building,
+  ExternalLink
 } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
@@ -242,6 +245,9 @@ export const TimelineView: React.FC = () => {
   const totalCount = activities?.length || 0;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const defaultGPS = settings?.defaultGPS || 'google_maps';
+  const partnerId = settings?.affiliatePartnerId || '';
+
+  const bookingUrl = activeTrip ? getBookingUrl(activeTrip.destination, partnerId) : '#';
 
   if (!activeTrip) {
     return (
@@ -299,6 +305,19 @@ export const TimelineView: React.FC = () => {
                 <Wallet className="w-3 h-3 text-emerald-400 shrink-0" />
                 Est. Séjour: ~{formatPrice(tripTotalEstimatedCost, activeTrip.currency)}
               </span>
+
+              {/* AFFILIATE HOTEL BOOKING BUTTON */}
+              <a
+                href={bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-full hover:bg-amber-500/25 transition-all shadow-sm"
+                title="Trouver un hôtel sur Booking.com"
+              >
+                <Building className="w-3 h-3 text-amber-400" />
+                <span>Hôtels</span>
+                <ExternalLink className="w-2.5 h-2.5 text-amber-400/70" />
+              </a>
             </div>
 
             <h2 className="text-xl font-extrabold text-white tracking-tight font-display leading-snug">
@@ -504,6 +523,7 @@ export const TimelineView: React.FC = () => {
                 activity={act}
                 prevActivity={index > 0 ? activities[index - 1] : undefined}
                 defaultGPS={defaultGPS}
+                partnerId={partnerId}
                 onToggleComplete={handleToggleComplete}
                 onEdit={(actToEdit) => {
                   setEditingActivity(actToEdit);

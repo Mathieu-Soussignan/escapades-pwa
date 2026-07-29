@@ -1,60 +1,52 @@
 import type { WeatherData } from '../types';
 
-export async function fetchWeatherForDestination(destination: string, latitude?: number, longitude?: number): Promise<WeatherData | null> {
+export async function fetchWeatherForDestination(destination: string): Promise<WeatherData | null> {
   try {
-    let lat = latitude;
-    let lng = longitude;
+    // 1. Geocoding via Open-Meteo Geocoding API
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=fr&format=json`;
+    const geoRes = await fetch(geoUrl);
+    if (!geoRes.ok) return null;
+    const geoData = await geoRes.json();
 
-    // If coordinates are not provided, geocode destination using Open-Meteo Geocoding
-    if (lat === undefined || lng === undefined) {
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=fr&format=json`
-      );
-      if (!geoRes.ok) return null;
-      const geoData = await geoRes.json();
-      if (!geoData.results || geoData.results.length === 0) return null;
-      lat = geoData.results[0].latitude;
-      lng = geoData.results[0].longitude;
+    if (!geoData.results || geoData.results.length === 0) {
+      return null;
     }
 
-    // Fetch Weather Forecast from Open-Meteo
-    const weatherRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&hourly=precipitation_probability`
-    );
+    const { latitude, longitude } = geoData.results[0];
+
+    // 2. Weather forecast via Open-Meteo Weather API
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`;
+    const weatherRes = await fetch(weatherUrl);
     if (!weatherRes.ok) return null;
     const weatherData = await weatherRes.json();
 
-    const currentWeather = weatherData.current_weather;
-    if (!currentWeather) return null;
+    const current = weatherData.current_weather;
+    if (!current) return null;
 
-    const temp = Math.round(currentWeather.temperature);
-    const code = currentWeather.weathercode;
-    const rainProb = weatherData.hourly?.precipitation_probability?.[0] || 0;
-
-    const info = getWeatherInfoFromCode(code);
+    const weatherInfo = getWeatherInfoFromCode(current.weathercode);
 
     return {
-      temperature: temp,
-      weatherCode: code,
-      weatherDescription: info.description,
-      icon: info.icon,
-      rainProbability: rainProb
+      temperature: Math.round(current.temperature),
+      weatherCode: current.weathercode,
+      description: weatherInfo.description,
+      weatherDescription: weatherInfo.description,
+      icon: weatherInfo.icon,
+      windSpeed: current.windspeed
     };
   } catch (err) {
-    console.warn('Unable to fetch weather info:', err);
+    console.warn('Weather fetch failed:', err);
     return null;
   }
 }
 
 function getWeatherInfoFromCode(code: number): { description: string; icon: string } {
   if (code === 0) return { description: 'Ensoleillé', icon: '☀️' };
-  if (code === 1 || code === 2) return { description: 'Peu nuageux', icon: '🌤️' };
-  if (code === 3) return { description: 'Nuageux', icon: '☁️' };
+  if (code >= 1 && code <= 3) return { description: 'Partiellement nuageux', icon: '⛅' };
   if (code >= 45 && code <= 48) return { description: 'Brouillard', icon: '🌫️' };
-  if (code >= 51 && code <= 55) return { description: 'Bruine légère', icon: '🌦️' };
-  if (code >= 61 && code <= 65) return { description: 'Pluie', icon: '🌧️' };
+  if (code >= 51 && code <= 67) return { description: 'Pluie légère / Bruine', icon: '🌧️' };
   if (code >= 71 && code <= 77) return { description: 'Neige', icon: '❄️' };
-  if (code >= 80 && code <= 82) return { description: 'Averses', icon: '🌧️' };
-  if (code >= 95) return { description: 'Orage', icon: '⛈️' };
-  return { description: 'Ciel variable', icon: '⛅' };
+  if (code >= 80 && code <= 82) return { description: 'Averses', icon: '🌦️' };
+  if (code >= 95 && code <= 99) return { description: 'Orageux', icon: '⛈️' };
+
+  return { description: 'Météo variable', icon: '🌤️' };
 }

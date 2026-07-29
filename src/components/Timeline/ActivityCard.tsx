@@ -3,6 +3,7 @@ import type { Activity, GPSApp } from '../../types';
 import { CategoryBadge } from './CategoryBadge';
 import { openGPS } from '../../services/gpsService';
 import { estimateTransitInfo } from '../../utils/geoUtils';
+import { getGetYourGuideUrl } from '../../services/affiliateService';
 import { 
   Check, 
   MapPin, 
@@ -15,7 +16,7 @@ import {
   ChevronUp,
   Footprints,
   Car,
-  Image as ImageIcon
+  Ticket
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -23,6 +24,7 @@ interface ActivityCardProps {
   activity: Activity;
   prevActivity?: Activity;
   defaultGPS: GPSApp;
+  partnerId?: string;
   onToggleComplete: (id: number, currentCompleted: boolean) => void;
   onEdit: (activity: Activity) => void;
   onDelete: (id: number) => void;
@@ -32,6 +34,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   activity,
   prevActivity,
   defaultGPS,
+  partnerId,
   onToggleComplete,
   onEdit,
   onDelete
@@ -64,11 +67,13 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
     setShowGPSMenu(false);
   };
 
-  // Compute transit time & distance from previous activity if coordinates exist
   const transitInfo = prevActivity ? estimateTransitInfo(
     prevActivity.latitude, prevActivity.longitude,
     activity.latitude, activity.longitude
   ) : null;
+
+  const showTicketButton = ['monument', 'culture', 'activity', 'nature', 'museum'].includes(activity.category);
+  const ticketUrl = getGetYourGuideUrl(activity.locationName, undefined, partnerId);
 
   return (
     <div className="space-y-2">
@@ -107,7 +112,6 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             <CategoryBadge category={activity.category} size="sm" />
           </div>
 
-          {/* Action button */}
           <div className="flex items-center gap-1">
             {activity.priceEstimate && (
               <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
@@ -152,7 +156,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
           </div>
         </div>
 
-        {/* Expanded Details & Description */}
+        {/* Expanded Details */}
         {isExpanded && (
           <div className="mt-3 pt-3 border-t border-slate-800/80 text-xs text-slate-300 space-y-2 animate-fadeIn">
             {activity.description && (
@@ -175,49 +179,66 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
           </div>
         )}
 
-        {/* GPS Action Bar */}
-        <div className="mt-3.5 pt-2.5 border-t border-slate-800/60 flex items-center justify-between">
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowGPSMenu(!showGPSMenu);
-              }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 px-3 py-1.5 rounded-xl transition-all shadow-sm active:scale-95"
-            >
-              <Navigation className="w-3.5 h-3.5 text-blue-400 fill-blue-400/20" />
-              <span>Naviguer</span>
-              <ExternalLink className="w-3 h-3 text-blue-400/70" />
-            </button>
+        {/* Action Bar: GPS + Affiliate Ticket Button */}
+        <div className="mt-3.5 pt-2.5 border-t border-slate-800/60 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowGPSMenu(!showGPSMenu);
+                }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 px-3 py-1.5 rounded-xl transition-all shadow-sm active:scale-95"
+              >
+                <Navigation className="w-3.5 h-3.5 text-blue-400 fill-blue-400/20" />
+                <span>Naviguer</span>
+                <ExternalLink className="w-3 h-3 text-blue-400/70" />
+              </button>
 
-            {showGPSMenu && (
-              <div className="absolute left-0 bottom-full mb-2 w-48 glass-panel rounded-2xl shadow-2xl p-1.5 z-30 border border-slate-700/80 space-y-1 animate-scaleIn">
-                <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
-                  Lancer le GPS
+              {showGPSMenu && (
+                <div className="absolute left-0 bottom-full mb-2 w-48 glass-panel rounded-2xl shadow-2xl p-1.5 z-30 border border-slate-700/80 space-y-1 animate-scaleIn">
+                  <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
+                    Lancer le GPS
+                  </div>
+                  <button
+                    onClick={(e) => handleLaunchGPS('google_maps', e)}
+                    className="w-full flex items-center gap-2 text-xs text-slate-200 hover:bg-blue-600/30 p-2 rounded-xl text-left transition-colors font-medium"
+                  >
+                    🗺️ Google Maps
+                  </button>
+                  <button
+                    onClick={(e) => handleLaunchGPS('waze', e)}
+                    className="w-full flex items-center gap-2 text-xs text-slate-200 hover:bg-blue-600/30 p-2 rounded-xl text-left transition-colors font-medium"
+                  >
+                    🏎️ Waze
+                  </button>
+                  <button
+                    onClick={(e) => handleLaunchGPS('apple_maps', e)}
+                    className="w-full flex items-center gap-2 text-xs text-slate-200 hover:bg-blue-600/30 p-2 rounded-xl text-left transition-colors font-medium"
+                  >
+                    🍏 Apple Maps
+                  </button>
                 </div>
-                <button
-                  onClick={(e) => handleLaunchGPS('google_maps', e)}
-                  className="w-full flex items-center gap-2 text-xs text-slate-200 hover:bg-blue-600/30 p-2 rounded-xl text-left transition-colors font-medium"
-                >
-                  🗺️ Google Maps
-                </button>
-                <button
-                  onClick={(e) => handleLaunchGPS('waze', e)}
-                  className="w-full flex items-center gap-2 text-xs text-slate-200 hover:bg-blue-600/30 p-2 rounded-xl text-left transition-colors font-medium"
-                >
-                  🏎️ Waze
-                </button>
-                <button
-                  onClick={(e) => handleLaunchGPS('apple_maps', e)}
-                  className="w-full flex items-center gap-2 text-xs text-slate-200 hover:bg-blue-600/30 p-2 rounded-xl text-left transition-colors font-medium"
-                >
-                  🍏 Apple Maps
-                </button>
-              </div>
+              )}
+            </div>
+
+            {/* AFFILIATE TICKET BUTTON */}
+            {showTicketButton && (
+              <a
+                href={ticketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs font-semibold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 px-3 py-1.5 rounded-xl transition-all shadow-sm active:scale-95"
+                title="Réserver les billets coupe-file"
+              >
+                <Ticket className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Billets</span>
+                <ExternalLink className="w-3 h-3 text-emerald-400/70" />
+              </a>
             )}
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 ml-auto">
             <button
               onClick={() => onEdit(activity)}
               className="p-1.5 text-slate-400 hover:text-blue-400 rounded-lg hover:bg-slate-800/50 transition-colors"

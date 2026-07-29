@@ -1,127 +1,148 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { Activity, GPSApp } from '../../types';
 import { openGPS } from '../../services/gpsService';
-import { categoryConfig } from '../Timeline/CategoryBadge';
-import 'leaflet/dist/leaflet.css';
-
-// Fix Leaflet icon default asset path issue in Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+import { categoryConfigs } from '../Timeline/CategoryBadge';
+import { ExternalLink, Navigation } from 'lucide-react';
 
 interface MapViewProps {
   activities: Activity[];
   defaultGPS: GPSApp;
 }
 
-// Component to dynamically fit map bounds to markers
-const MapBoundsFitter: React.FC<{ coords: [number, number][] }> = ({ coords }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (coords.length > 0) {
-      const bounds = L.latLngBounds(coords);
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-    }
-  }, [coords, map]);
-  return null;
-};
+// Fix Leaflet default icon path issue in Vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 export const MapView: React.FC<MapViewProps> = ({ activities, defaultGPS }) => {
-  // Filter activities with valid lat/lng coordinates or estimate default coords if missing
-  const activitiesWithCoords = activities.map((act, index) => {
-    let lat = act.latitude;
-    let lng = act.longitude;
+  const mapContainerId = "escapades-interactive-map";
 
-    // Fallback coordinates for demo if lat/lng is missing
-    if (lat === undefined || lng === undefined) {
-      lat = 45.8986 + (index * 0.005);
-      lng = 6.1278 + (index * 0.006);
+  useEffect(() => {
+    if (!activities || activities.length === 0) return;
+
+    // Filter activities with valid mock/real coordinates or generate deterministic offset
+    const validActivities = activities.map((act, index) => {
+      if (act.latitude && act.longitude) {
+        return act;
+      }
+      // Fallback coordinates based on Annecy / default center
+      const baseLat = 45.8992;
+      const baseLng = 6.1293;
+      const offsetLat = (index - activities.length / 2) * 0.008;
+      const offsetLng = (index % 2 === 0 ? 1 : -1) * 0.006 * index;
+      return {
+        ...act,
+        latitude: baseLat + offsetLat,
+        longitude: baseLng + offsetLng
+      };
+    });
+
+    const centerLat = validActivities[0]?.latitude || 45.8992;
+    const centerLng = validActivities[0]?.longitude || 6.1293;
+
+    // Initialize Leaflet map
+    const map = L.map(mapContainerId, {
+      center: [centerLat, centerLng],
+      zoom: 13,
+      zoomControl: false
+    });
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Dark Mode Tiles (CartoDB Dark Matter)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    const latLngs: L.LatLngExpression[] = [];
+
+    // Add Markers and Popups
+    validActivities.forEach((act, idx) => {
+      if (!act.latitude || !act.longitude) return;
+
+      const pos: L.LatLngExpression = [act.latitude, act.longitude];
+      latLngs.push(pos);
+
+      const catInfo = categoryConfigs[act.category] || categoryConfigs.activity;
+
+      const customHtmlIcon = L.divIcon({
+        className: 'custom-leaflet-marker',
+        html: `
+          <div style="
+            background: #0f172a;
+            border: 2px solid ${act.completed ? '#10b981' : '#3b82f6'};
+            border-radius: 9999px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-[#000];
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          ">
+            ${idx + 1}
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+
+      const popupContent = document.createElement('div');
+      popupContent.className = "p-1 text-slate-900 font-sans space-y-1.5";
+      popupContent.innerHTML = `
+        <div style="font-weight: bold; font-size: 13px; color: #0f172a;">${act.time} — ${act.title}</div>
+        <div style="font-size: 11px; color: #475569;">📍 ${act.locationName}</div>
+        ${act.priceEstimate ? `<div style="font-size: 11px; color: #059669; font-weight: 600;">💰 ${act.priceEstimate}</div>` : ''}
+      `;
+
+      const btn = document.createElement('button');
+      btn.className = "mt-2 w-full py-1.5 px-3 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1 shadow";
+      btn.innerHTML = `<span>Naviguer GPS</span>`;
+      btn.onclick = () => {
+        openGPS(defaultGPS, {
+          locationName: act.locationName,
+          address: act.address,
+          latitude: act.latitude,
+          longitude: act.longitude
+        });
+      };
+      popupContent.appendChild(btn);
+
+      L.marker(pos, { icon: customHtmlIcon })
+        .addTo(map)
+        .bindPopup(popupContent);
+    });
+
+    // Draw route polyline
+    if (latLngs.length > 1) {
+      const polyline = L.polyline(latLngs, {
+        color: '#3b82f6',
+        weight: 3,
+        opacity: 0.8,
+        dashArray: '8, 8'
+      }).addTo(map);
+
+      map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
     }
-    return { ...act, latitude: lat, longitude: lng };
-  });
 
-  const positions: [number, number][] = activitiesWithCoords.map(a => [a.latitude!, a.longitude!]);
-  const center: [number, number] = positions.length > 0 ? positions[0] : [45.8986, 6.1278];
+    return () => {
+      map.remove();
+    };
+  }, [activities, defaultGPS]);
 
   return (
-    <div className="relative w-full h-[280px] rounded-3xl overflow-hidden glass-panel border border-slate-800 shadow-2xl z-10">
-      <MapContainer
-        center={center}
-        zoom={13}
-        scrollWheelZoom={false}
-        className="w-full h-full"
-        style={{ background: '#090d16' }}
-      >
-        {/* CartoDB Dark Matter Tiles */}
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
-
-        <MapBoundsFitter coords={positions} />
-
-        {/* Route Polyline */}
-        {positions.length > 1 && (
-          <Polyline
-            positions={positions}
-            pathOptions={{ color: '#0A84FF', weight: 3, opacity: 0.8, dashArray: '6, 8' }}
-          />
-        )}
-
-        {/* Category Markers */}
-        {activitiesWithCoords.map((act) => {
-          const conf = categoryConfig[act.category] || categoryConfig.activity;
-
-          // Custom HTML Pin Icon
-          const customPin = L.divIcon({
-            className: 'custom-leaflet-pin',
-            html: `<div style="
-              background: #0f172a;
-              border: 2px solid ${act.completed ? '#10b981' : '#3b82f6'};
-              color: white;
-              border-radius: 9999px;
-              width: 32px;
-              height: 32px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-weight: bold;
-              font-size: 11px;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            ">${act.time.split(':')[0]}h</div>`,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-          });
-
-          return (
-            <Marker key={act.id || act.title} position={[act.latitude!, act.longitude!]} icon={customPin}>
-              <Popup className="custom-dark-popup">
-                <div className="p-1 space-y-1.5 text-slate-900 text-xs font-sans">
-                  <div className="font-bold text-slate-950 flex items-center justify-between gap-2">
-                    <span>{act.time} — {act.title}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 font-medium">📍 {act.locationName}</p>
-
-                  <div className="pt-1 flex items-center justify-between border-t border-slate-200">
-                    <span className="text-[10px] font-bold uppercase text-slate-500">{conf.label}</span>
-                    <button
-                      onClick={() => openGPS(defaultGPS, { locationName: act.locationName, address: act.address, latitude: act.latitude, longitude: act.longitude })}
-                      className="px-2 py-1 bg-blue-600 text-white font-bold rounded-lg text-[10px]"
-                    >
-                      GPS 🏎️
-                    </button>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
-      </MapContainer>
+    <div className="relative rounded-3xl overflow-hidden glass-panel border border-slate-800 shadow-xl h-[420px] w-full">
+      <div id={mapContainerId} className="h-full w-full z-10" />
     </div>
   );
 };
