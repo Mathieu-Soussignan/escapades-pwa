@@ -12,9 +12,9 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
 }
 
 export function getBookingUrl(destination: string, partnerId: string = ''): string {
-  const baseUrl = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(destination)}`;
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  return `${baseUrl}&aid=304142&label=tp-${marker}`;
+  const query = destination ? destination.trim() : 'France';
+  return `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(query)}&aid=304142&label=tp-${marker}`;
 }
 
 export function getTripadvisorUrl(locationName: string, destination?: string): string {
