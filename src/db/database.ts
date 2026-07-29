@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Trip, DayPlan, Activity, UserSettings } from '../types';
+import type { Trip, DayPlan, Activity, UserSettings } from '../types';
 
 export class EscapadesDatabase extends Dexie {
   trips!: Table<Trip>;
@@ -20,21 +20,40 @@ export class EscapadesDatabase extends Dexie {
 
 export const db = new EscapadesDatabase();
 
-// Pre-fill initial seed data if DB is empty
 export async function initSeedData() {
   const tripCount = await db.trips.count();
+  const settingsCount = await db.settings.count();
+
+  // Read environment variables if available
+  const envMistralKey = import.meta.env.VITE_MISTRAL_API_KEY || '';
+  const envGeminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const envProvider = (import.meta.env.VITE_DEFAULT_LLM_PROVIDER as any) || (envMistralKey ? 'mistral' : envGeminiKey ? 'gemini' : 'mistral');
+  const envApiKey = envProvider === 'gemini' ? envGeminiKey : envMistralKey;
+
+  // Initial Settings seed or update API key if empty
+  if (settingsCount === 0) {
+    await db.settings.add({
+      llmProvider: envProvider,
+      apiKey: envApiKey,
+      modelName: envProvider === 'gemini' ? 'gemini-1.5-flash' : 'mistral-small-latest',
+      defaultGPS: 'google_maps',
+      theme: 'dark'
+    });
+  } else if (envApiKey) {
+    // If settings exist but API key is empty, populate from .env
+    const firstSetting = await db.settings.toCollection().first();
+    if (firstSetting && (!firstSetting.apiKey || firstSetting.apiKey.trim() === '')) {
+      await db.settings.update(firstSetting.id!, {
+        llmProvider: envProvider,
+        apiKey: envApiKey,
+        modelName: envProvider === 'gemini' ? 'gemini-1.5-flash' : 'mistral-small-latest'
+      });
+    }
+  }
+
   if (tripCount > 0) return;
 
-  // 1. Initial Settings
-  await db.settings.add({
-    llmProvider: 'openai',
-    apiKey: '',
-    modelName: 'gpt-4o',
-    defaultGPS: 'google_maps',
-    theme: 'dark'
-  });
-
-  // 2. Initial Trip 1: Escapade au Lac d'Annecy
+  // Initial Trip 1: Escapade au Lac d'Annecy
   const trip1Id = await db.trips.add({
     title: "Escapade au Lac d'Annecy",
     destination: "Annecy, France",
@@ -174,7 +193,7 @@ export async function initSeedData() {
     }
   ]);
 
-  // 2. Initial Trip 2: Week-end à Kyoto (Plannifié)
+  // Initial Trip 2: Week-end à Kyoto
   const trip2Id = await db.trips.add({
     title: "Merveilles de Kyoto & Arashiyama",
     destination: "Kyoto, Japon",
