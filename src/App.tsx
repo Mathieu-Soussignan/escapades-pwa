@@ -1,26 +1,202 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
-import { Header } from './components/Header';
 import { TabBar } from './components/TabBar';
 import { TimelineView } from './components/Timeline/TimelineView';
 import { TripList } from './components/Trips/TripList';
 import { AIPlannerWizard } from './components/LLMPlanner/AIPlannerWizard';
 import { SettingsView } from './components/Settings/SettingsView';
-import { initSeedData } from './db/database';
-import { CheckCircle } from 'lucide-react';
+import { db, initSeedData } from './db/database';
+import { requestNotificationPermission, checkAndScheduleTodayReminders } from './services/notificationService';
+import { Sparkles, Bell, Download, Check } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { activeTab, toastMessage } = useApp();
+  const { activeTab, setActiveTab, activeTripId, setActiveTripId, showToast } = useApp();
+  const [importedTripTitle, setImportedTripTitle] = useState<string | null>(null);
+  const [importDataRaw, setImportDataRaw] = useState<string | null>(null);
+  const [notificationStatus, setNotificationStatus] = useState<boolean>(false);
 
   useEffect(() => {
-    // Initialize seed data if empty
     initSeedData();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24">
-      <Header />
+  // Check for Notifications permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setNotificationStatus(true);
+    }
+  }, []);
 
+  // Check URL parameters for scanned QR Code trip import ?importTrip=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const importTripParam = params.get('importTrip');
+
+    if (importTripParam) {
+      try {
+        const decoded = decodeURIComponent(escape(atob(importTripParam)));
+        const parsed = JSON.parse(decoded);
+        if (parsed.t && parsed.d) {
+          setImportedTripTitle(parsed.t.title || 'Nouvelle Escapade');
+          setImportDataRaw(decoded);
+        }
+      } catch (err) {
+        console.error('Failed to parse imported QR trip:', err);
+      }
+    }
+  }, []);
+
+  // Check for step reminders every 5 minutes
+  useEffect(() => {
+    const checkReminders = async () => {
+      if (!activeTripId) return;
+      const days = await db.days.where('tripId').equals(activeTripId).toArray();
+      const dayIds = days.map(d => d.id!);
+      const acts = await db.activities.where('dayId').anyOf(dayIds).toArray();
+      checkAndScheduleTodayReminders(acts);
+    };
+
+    checkReminders();
+    const interval = setInterval(checkReminders, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [activeTripId]);
+
+  const handleConfirmImportFromQR = async () => {
+    if (!importDataRaw) return;
+
+    try {
+      const parsed = JSON.parse(importDataRaw);
+      const newTripId = await db.trips.add({
+        title: parsed.t.title,
+        destination: parsed.t.destination,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        coverImage: parsed.t.coverImage || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
+        vibe: parsed.t.vibe || 'balanced',
+        currency: 'EUR',
+        status: 'active',
+        createdAt: new Date().toISOString()
+      });
+
+      for (let idx = 0; idx < parsed.d.length; idx++) {
+        const d = parsed.d[idx];
+        const dayId = await db.days.add({
+          tripId: newTripId as number,
+          dayNumber: d.dayNumber || idx + 1,
+          date: new Date().toISOString().split('T')[0],
+          title: d.title,
+          summary: d.summary
+        });
+
+        const dayActs = parsed.a || [];
+        const actsToAdd = dayActs.map((a: any, aIdx: number) => ({
+          dayId: dayId as number,
+          time: a.time || '10:00',
+          title: a.title,
+          description: a.description || '',
+          category: a.category || 'activity',
+          locationName: a.locationName || parsed.t.destination,
+          address: a.address || '',
+          durationMinutes: a.durationMinutes || 60,
+          priceEstimate: a.priceEstimate || 'Gratuit',
+          completed: false,
+          order: aIdx + 1
+        }));
+
+        await db.activities.bulkAdd(actsToAdd);
+      }
+
+      setActiveTripId(newTripId as number);
+      setImportedTripTitle(null);
+      setImportDataRaw(null);
+      
+      // Clean URL parameter
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      showToast('Escapade clonée et importée avec succès ! 🎉');
+      setActiveTab('timeline');
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur lors de l’importation de l’escapade.');
+    }
+  };
+
+  const handleToggleNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    setNotificationStatus(granted);
+    if (granted) {
+      showToast('Notifications de rappels d’étapes activées ! 🔔');
+    } else {
+      showToast('Notifications refusées ou non supportées.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500 selection:text-white pb-20">
+      
+      {/* Top Mobile Bar Header */}
+      <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 py-3">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2" onClick={() => setActiveTab('timeline')}>
+            <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <span className="font-extrabold text-lg tracking-tight font-display bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Escapades
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Notification Bell Button */}
+            <button
+              onClick={handleToggleNotifications}
+              className={`p-2 rounded-2xl border transition-all text-xs font-semibold flex items-center gap-1 ${
+                notificationStatus
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+              }`}
+              title={notificationStatus ? "Rappels activés" : "Activer les rappels d'étapes"}
+            >
+              <Bell className={`w-4 h-4 ${notificationStatus ? 'text-emerald-400 fill-emerald-400/20' : ''}`} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Instant QR Code Import Prompt Banner */}
+      {importedTripTitle && (
+        <div className="max-w-md mx-auto px-4 pt-3">
+          <div className="glass-panel rounded-3xl p-4 border border-purple-500/40 bg-gradient-to-r from-purple-950/40 to-slate-950 shadow-2xl space-y-2 animate-fadeIn">
+            <div className="flex items-center gap-2 text-purple-300 font-bold text-xs">
+              <Download className="w-4 h-4 text-purple-400" />
+              <span>Importation d'Escapade Scannée par QR Code</span>
+            </div>
+            <p className="text-xs text-slate-200">
+              Voulez-vous importer <strong className="text-white">"{importedTripTitle}"</strong> sur votre téléphone ?
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleConfirmImportFromQR}
+                className="flex-1 py-2 rounded-xl bg-purple-600 text-white font-bold text-xs shadow-lg shadow-purple-500/30 flex items-center justify-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Importer l'escapade
+              </button>
+              <button
+                onClick={() => {
+                  setImportedTripTitle(null);
+                  setImportDataRaw(null);
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-900 text-slate-400 text-xs"
+              >
+                Ignorer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main View Router */}
       <main className="max-w-md mx-auto px-4 pt-4">
         {activeTab === 'timeline' && <TimelineView />}
         {activeTab === 'trips' && <TripList />}
@@ -28,23 +204,18 @@ const AppContent: React.FC = () => {
         {activeTab === 'settings' && <SettingsView />}
       </main>
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 glass-panel rounded-2xl px-4 py-2.5 shadow-2xl border border-blue-500/40 text-xs font-semibold text-white flex items-center gap-2 animate-bounce">
-          <CheckCircle className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
+      {/* Fixed Bottom Glass TabBar */}
       <TabBar />
     </div>
   );
 };
 
-export default function App() {
+export const App: React.FC = () => {
   return (
     <AppProvider>
       <AppContent />
     </AppProvider>
   );
-}
+};
+
+export default App;

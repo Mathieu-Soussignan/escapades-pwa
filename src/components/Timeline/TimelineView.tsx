@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { ActivityCard } from './ActivityCard';
 import { ActivityModal } from './ActivityModal';
 import { MapView } from '../Map/MapView';
+import { QRCodeShareModal } from '../Trips/QRCodeShareModal';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
@@ -27,7 +28,8 @@ import {
   MessageSquare, 
   Wallet,
   Building,
-  ExternalLink
+  ExternalLink,
+  QrCode
 } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
@@ -57,6 +59,7 @@ export const TimelineView: React.FC = () => {
 
   const [customAIPrompt, setCustomAIPrompt] = useState('');
   const [showAIPromptBar, setShowAIPromptBar] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   useEffect(() => {
     if (days && days.length > 0) {
@@ -402,6 +405,15 @@ export const TimelineView: React.FC = () => {
                   <span className="text-[11px]">Modifier par AI</span>
                 </button>
 
+                {/* QR CODE SHARE BUTTON */}
+                <button
+                  onClick={() => setShowQRModal(true)}
+                  className="p-2 text-purple-300 hover:text-purple-100 rounded-xl bg-purple-950/40 border border-purple-500/30"
+                  title="Partager par QR Code"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                </button>
+
                 <button
                   onClick={handleShareItinerary}
                   className="p-2 text-slate-400 hover:text-blue-400 rounded-xl bg-slate-900 border border-slate-800"
@@ -566,6 +578,17 @@ export const TimelineView: React.FC = () => {
           onSave={handleSaveActivity}
           dayId={selectedDayId}
           initialActivity={editingActivity}
+        />
+      )}
+
+      {/* QR Code Share Modal */}
+      {activeTrip && days && (
+        <QRCodeShareModal
+          isOpen={showQRModal}
+          onClose={() => setShowQRModal(false)}
+          trip={activeTrip}
+          days={days}
+          activities={allTripActivities || []}
         />
       )}
     </div>
