@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Trip, DayPlan, Activity } from '../../types';
-import { QrCode, Copy, Check, X, Smartphone, Sparkles } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { QrCode, Copy, Check, X, Smartphone } from 'lucide-react';
 
 interface QRCodeShareModalProps {
   isOpen: boolean;
@@ -21,7 +22,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Create lightweight compact payload for QR Code URL
+  // Create compact payload for QR Code URL
   const exportPayload = {
     t: { title: trip.title, destination: trip.destination, vibe: trip.vibe, coverImage: trip.coverImage },
     d: days.map(d => ({ dayNumber: d.dayNumber, title: d.title, summary: d.summary })),
@@ -38,11 +39,14 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
   };
 
   const jsonStr = JSON.stringify(exportPayload);
-  // Base64 encode for clean URL parameter
-  const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
-  const shareableUrl = `${window.location.origin}${window.location.pathname}?importTrip=${encodeURIComponent(base64Data)}`;
+  let base64Data = '';
+  try {
+    base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
+  } catch (e) {
+    base64Data = btoa(jsonStr.substring(0, 500));
+  }
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareableUrl)}&color=ffffff&bgcolor=090d16`;
+  const shareableUrl = `${window.location.origin}${window.location.pathname}?importTrip=${encodeURIComponent(base64Data)}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareableUrl);
@@ -69,17 +73,20 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           <p className="text-xs text-slate-400">Scannez pour cloner cette escapade en 1 seconde !</p>
         </div>
 
-        {/* QR Code Canvas Container */}
-        <div className="p-4 bg-slate-950 rounded-2xl border border-purple-500/30 inline-block shadow-inner">
-          <img
-            src={qrImageUrl}
-            alt="QR Code d'Escapade"
-            className="w-48 h-48 mx-auto rounded-xl"
+        {/* Local High-Contrast SVG QR Code Container */}
+        <div className="p-4 bg-white rounded-2xl border-2 border-purple-500 inline-block shadow-xl">
+          <QRCodeSVG
+            value={shareableUrl}
+            size={200}
+            bgColor="#ffffff"
+            fgColor="#020617"
+            level="L"
+            includeMargin={false}
           />
         </div>
 
-        <div className="text-[11px] text-slate-400 flex items-center justify-center gap-1">
-          <Smartphone className="w-3.5 h-3.5 text-blue-400" />
+        <div className="text-[11px] text-slate-300 flex items-center justify-center gap-1 font-medium">
+          <Smartphone className="w-3.5 h-3.5 text-blue-400 shrink-0" />
           Ouvrez l'appareil photo d'un iPhone ou Android pour scanner
         </div>
 
