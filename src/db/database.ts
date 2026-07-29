@@ -36,29 +36,19 @@ export async function initSeedData() {
   const tripCount = await db.trips.count();
   const settingsCount = await db.settings.count();
 
-  // Read environment variables if available
+  // Read environment variables ONLY in local development
   const envMistralKey = import.meta.env.VITE_MISTRAL_API_KEY || '';
   const envGeminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-  const envProvider = (import.meta.env.VITE_DEFAULT_LLM_PROVIDER as any) || (envMistralKey ? 'mistral' : envGeminiKey ? 'gemini' : 'mistral');
-  const envApiKey = envProvider === 'gemini' ? envGeminiKey : envMistralKey;
+  const envProvider = (import.meta.env.VITE_DEFAULT_LLM_PROVIDER as any) || 'mistral';
 
   if (settingsCount === 0) {
     await db.settings.add({
       llmProvider: envProvider,
-      apiKey: envApiKey,
+      apiKey: envMistralKey || envGeminiKey || '', // Only populated in local dev if present
       modelName: envProvider === 'gemini' ? 'gemini-1.5-flash' : 'mistral-small-latest',
       defaultGPS: 'google_maps',
       theme: 'dark'
     });
-  } else if (envApiKey) {
-    const firstSetting = await db.settings.toCollection().first();
-    if (firstSetting && (!firstSetting.apiKey || firstSetting.apiKey.trim() === '')) {
-      await db.settings.update(firstSetting.id!, {
-        llmProvider: envProvider,
-        apiKey: envApiKey,
-        modelName: envProvider === 'gemini' ? 'gemini-1.5-flash' : 'mistral-small-latest'
-      });
-    }
   }
 
   if (tripCount > 0) return;

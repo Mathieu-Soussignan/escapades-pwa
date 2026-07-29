@@ -14,6 +14,7 @@ export const SettingsView: React.FC = () => {
   const [modelName, setModelName] = useState('mistral-small-latest');
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [defaultGPS, setDefaultGPS] = useState<GPSApp>('google_maps');
+  const [activeOsGuide, setActiveOsGuide] = useState<'ios' | 'android'>('ios');
 
   useEffect(() => {
     if (settings) {
@@ -113,14 +114,59 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 pb-16 text-xs">
+    <div className="space-y-4 pb-20 text-xs">
       
       {/* Header Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 font-display">Réglages</h2>
-          <p className="text-xs text-slate-400">Configuration API, AI & GPS</p>
+          <h2 className="text-xl font-bold text-slate-100 font-display">Réglages & Sécurité</h2>
+          <p className="text-xs text-slate-400">Clés API privées, GPS & Installation Mobile</p>
         </div>
+      </div>
+
+      {/* PWA Installation Guides for iOS & Android */}
+      <div className="glass-panel rounded-3xl p-4 border border-blue-500/30 bg-gradient-to-r from-blue-950/40 to-slate-900 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-blue-400" />
+            <h3 className="font-bold text-slate-100 text-xs font-display">Installer l'Application PWA Mobile</h3>
+          </div>
+
+          <div className="flex bg-slate-900 border border-slate-700/80 p-0.5 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveOsGuide('ios')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                activeOsGuide === 'ios' ? 'bg-blue-600 text-white' : 'text-slate-400'
+              }`}
+            >
+              🍏 iPhone
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveOsGuide('android')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                activeOsGuide === 'android' ? 'bg-emerald-600 text-white' : 'text-slate-400'
+              }`}
+            >
+              🤖 Android
+            </button>
+          </div>
+        </div>
+
+        {activeOsGuide === 'ios' ? (
+          <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
+            1. Ouvrez l'application dans <span className="font-bold text-blue-400">Safari</span> sur iPhone.<br />
+            2. Appuyez sur le bouton <span className="font-bold text-blue-400">Partager</span> (icône carré avec flèche vers le haut).<br />
+            3. Sélectionnez <span className="font-bold text-blue-400">Sur l'écran d'accueil</span> puis cliquez sur <span className="font-bold text-white">Ajouter</span>.
+          </p>
+        ) : (
+          <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
+            1. Ouvrez le lien dans <span className="font-bold text-emerald-400">Google Chrome</span> ou Samsung Internet.<br />
+            2. Appuyez sur le menu <span className="font-bold text-emerald-400">Menu (3 petits points ⋮)</span> en haut à droite.<br />
+            3. Sélectionnez <span className="font-bold text-emerald-400">Installer l'application</span> (ou <i>Ajouter à l'écran d'accueil</i>).
+          </p>
+        )}
       </div>
 
       {/* Settings Form */}
@@ -161,7 +207,7 @@ export const SettingsView: React.FC = () => {
         <div>
           <label className="block font-bold text-slate-200 mb-2 flex items-center gap-1.5 text-xs">
             <Key className="w-4 h-4 text-purple-400" />
-            Fournisseur AI & Clé API (Mistral & Gemini)
+            Fournisseur AI & Clé API Personnelle
           </label>
           
           <div className="space-y-3">
@@ -230,7 +276,7 @@ export const SettingsView: React.FC = () => {
             {/* API Key Input */}
             <div>
               <label className="block text-slate-400 text-[11px] mb-1 font-medium">
-                Clé API {llmProvider.toUpperCase()}
+                Votre Clé API {llmProvider.toUpperCase()}
               </label>
               <input
                 type="password"
@@ -243,8 +289,8 @@ export const SettingsView: React.FC = () => {
                 className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-slate-100 font-mono focus:border-purple-500 focus:outline-none text-xs"
               />
 
-              {/* Helpful Tips per Provider */}
-              <div className="mt-2 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-300 space-y-1">
+              {/* Helpful Tips per Provider & Security Notice */}
+              <div className="mt-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-300 space-y-1.5">
                 {llmProvider === 'mistral' && (
                   <p className="flex items-center gap-1 text-slate-300">
                     💡 Obtenez une clé 100% gratuite sur <a href="https://console.mistral.ai/" target="_blank" rel="noreferrer" className="text-blue-400 underline font-semibold flex items-center gap-0.5">console.mistral.ai <ExternalLink className="w-3 h-3" /></a>
@@ -255,10 +301,11 @@ export const SettingsView: React.FC = () => {
                     ✨ Obtenez une clé gratuite avec des quotas très élevés sur <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" className="text-blue-400 underline font-semibold flex items-center gap-0.5">Google AI Studio <ExternalLink className="w-3 h-3" /></a>
                   </p>
                 )}
-                <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                  La clé reste stockée localement dans IndexedDB sur votre iPhone.
-                </p>
+                
+                <div className="pt-1 border-t border-slate-800 text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  Sécurité : Votre clé API est stockée uniquement sur votre téléphone (IndexedDB). Vos amis utilisant cette application ne peuvent pas voir ni utiliser votre clé.
+                </div>
               </div>
             </div>
 
@@ -285,19 +332,6 @@ export const SettingsView: React.FC = () => {
         </button>
 
       </form>
-
-      {/* PWA iOS Banner */}
-      <div className="glass-panel rounded-3xl p-4 border border-blue-500/30 bg-gradient-to-r from-blue-950/40 to-slate-900 flex items-start gap-3">
-        <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-2xl shrink-0">
-          <Smartphone className="w-6 h-6" />
-        </div>
-        <div className="space-y-1">
-          <h3 className="font-bold text-slate-100 text-xs">Installer l'application sur votre iPhone</h3>
-          <p className="text-[11px] text-slate-300 leading-relaxed">
-            Dans Safari, appuyez sur le bouton <span className="font-semibold text-blue-400">Partager</span> (icône carré avec flèche vers le haut), puis sélectionnez <span className="font-semibold text-blue-400 font-bold">Sur l'écran d'accueil</span>.
-          </p>
-        </div>
-      </div>
 
       {/* Data Backup & Restore */}
       <div className="glass-panel rounded-3xl p-5 border border-slate-800 space-y-3">
