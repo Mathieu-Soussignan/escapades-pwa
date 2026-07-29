@@ -5,7 +5,8 @@ import { useApp } from '../../context/AppContext';
 import type { Trip, VibeStyle } from '../../types';
 import { BudgetTracker } from '../Budget/BudgetTracker';
 import { PackingChecklist } from '../Packing/PackingChecklist';
-import { Plus, MapPin, Calendar, Sparkles, Trash2, ChevronRight, PieChart, Luggage, ChevronDown, ChevronUp } from 'lucide-react';
+import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
+import { Plus, MapPin, Calendar, Sparkles, Trash2, ChevronRight, ChevronDown, ChevronUp, Wallet } from 'lucide-react';
 
 export const vibeLabels: Record<VibeStyle, { label: string; icon: string }> = {
   balanced: { label: 'Équilibré', icon: '⚖️' },
@@ -15,6 +16,116 @@ export const vibeLabels: Record<VibeStyle, { label: string; icon: string }> = {
   gastronomic: { label: 'Gastronomique', icon: '🍷' },
   nature_adventure: { label: 'Nature & Rando', icon: '🏔️' },
   romantic: { label: 'Romantique', icon: '💖' },
+};
+
+// Component for Individual Trip Card with Live Estimated Cost Calculation
+const TripCardItem: React.FC<{
+  trip: Trip;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onSelectTrip: () => void;
+  onDeleteTrip: (e: React.MouseEvent) => void;
+}> = ({ trip, isExpanded, onToggleExpand, onSelectTrip, onDeleteTrip }) => {
+  const vibeInfo = vibeLabels[trip.vibe] || vibeLabels.balanced;
+
+  // Live Query for all days of this trip
+  const days = useLiveQuery(() => (trip.id ? db.days.where('tripId').equals(trip.id).toArray() : []), [trip.id]);
+  const dayIds = days?.map(d => d.id!) || [];
+
+  // Live Query for all activities of this trip
+  const activities = useLiveQuery(
+    () => (dayIds.length > 0 ? db.activities.where('dayId').anyOf(dayIds).toArray() : []),
+    [dayIds.join(',')]
+  );
+
+  const totalEstimatedCost = activities?.reduce(
+    (acc, act) => acc + parsePriceEstimate(act.priceEstimate),
+    0
+  ) || 0;
+
+  return (
+    <div className="space-y-3">
+      <div
+        onClick={onSelectTrip}
+        className="group relative rounded-3xl overflow-hidden glass-panel border border-slate-800/80 hover:border-blue-500/40 p-4 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.99]"
+      >
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity"
+          style={{ backgroundImage: `url(${trip.coverImage})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
+
+        <div className="relative z-10 flex items-start justify-between">
+          <div className="space-y-1.5 max-w-[80%]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-200 bg-slate-900/80 border border-slate-700 px-2.5 py-0.5 rounded-full">
+                <MapPin className="w-3 h-3 text-rose-400" />
+                {trip.destination}
+              </span>
+              <span className="text-[10px] text-slate-300 bg-slate-900/80 px-2 py-0.5 rounded-full">
+                {vibeInfo.icon} {vibeInfo.label}
+              </span>
+
+              {/* Dynamic Estimated Cost Badge */}
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                <Wallet className="w-3 h-3 text-emerald-400" />
+                ~{formatPrice(totalEstimatedCost, trip.currency)}
+              </span>
+            </div>
+
+            <h3 className="font-extrabold text-base text-white tracking-tight font-display">
+              {trip.title}
+            </h3>
+
+            {trip.notes && (
+              <p className="text-xs text-slate-400 line-clamp-1">
+                {trip.notes}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand();
+              }}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-900/80"
+              title="Ouvrir budget et valise"
+            >
+              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={onDeleteTrip}
+              className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg bg-slate-900/80 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="relative z-10 mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
+          <span className="flex items-center gap-1 text-slate-400">
+            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+            {trip.startDate}
+          </span>
+
+          <span className="flex items-center gap-1 text-blue-400 font-semibold group-hover:translate-x-1 transition-transform">
+            Voir la timeline
+            <ChevronRight className="w-4 h-4" />
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded Budget & Packing Drawer */}
+      {isExpanded && (
+        <div className="space-y-3 pl-2 border-l-2 border-blue-500/40 animate-fadeIn">
+          <BudgetTracker trip={trip} />
+          <PackingChecklist trip={trip} />
+        </div>
+      )}
+    </div>
+  );
 };
 
 export const TripList: React.FC = () => {
@@ -138,91 +249,19 @@ export const TripList: React.FC = () => {
       {/* Trip Cards Grid */}
       <div className="space-y-4">
         {filteredTrips && filteredTrips.length > 0 ? (
-          filteredTrips.map((trip) => {
-            const vibeInfo = vibeLabels[trip.vibe] || vibeLabels.balanced;
-            const isExpanded = expandedTripId === trip.id;
-
-            return (
-              <div key={trip.id} className="space-y-3">
-                <div
-                  onClick={() => {
-                    setActiveTripId(trip.id!);
-                    setActiveTab('timeline');
-                  }}
-                  className="group relative rounded-3xl overflow-hidden glass-panel border border-slate-800/80 hover:border-blue-500/40 p-4 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.99]"
-                >
-                  <div
-                    className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity"
-                    style={{ backgroundImage: `url(${trip.coverImage})` }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
-
-                  <div className="relative z-10 flex items-start justify-between">
-                    <div className="space-y-1.5 max-w-[80%]">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-200 bg-slate-900/80 border border-slate-700 px-2.5 py-0.5 rounded-full">
-                          <MapPin className="w-3 h-3 text-rose-400" />
-                          {trip.destination}
-                        </span>
-                        <span className="text-[10px] text-slate-300 bg-slate-900/80 px-2 py-0.5 rounded-full">
-                          {vibeInfo.icon} {vibeInfo.label}
-                        </span>
-                      </div>
-
-                      <h3 className="font-extrabold text-base text-white tracking-tight font-display">
-                        {trip.title}
-                      </h3>
-
-                      {trip.notes && (
-                        <p className="text-xs text-slate-400 line-clamp-1">
-                          {trip.notes}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedTripId(isExpanded ? null : trip.id!);
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-900/80"
-                        title="Ouvrir budget et valise"
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteTrip(trip.id!, e)}
-                        className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg bg-slate-900/80 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="relative z-10 mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1 text-slate-400">
-                      <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                      {trip.startDate}
-                    </span>
-
-                    <span className="flex items-center gap-1 text-blue-400 font-semibold group-hover:translate-x-1 transition-transform">
-                      Voir la timeline
-                      <ChevronRight className="w-4 h-4" />
-                    </span>
-                  </div>
-                </div>
-
-                {/* Expanded Budget & Packing Drawer */}
-                {isExpanded && (
-                  <div className="space-y-3 pl-2 border-l-2 border-blue-500/40 animate-fadeIn">
-                    <BudgetTracker trip={trip} />
-                    <PackingChecklist trip={trip} />
-                  </div>
-                )}
-              </div>
-            );
-          })
+          filteredTrips.map((trip) => (
+            <TripCardItem
+              key={trip.id}
+              trip={trip}
+              isExpanded={expandedTripId === trip.id}
+              onToggleExpand={() => setExpandedTripId(expandedTripId === trip.id ? null : trip.id!)}
+              onSelectTrip={() => {
+                setActiveTripId(trip.id!);
+                setActiveTab('timeline');
+              }}
+              onDeleteTrip={(e) => handleDeleteTrip(trip.id!, e)}
+            />
+          ))
         ) : (
           <div className="text-center py-12 glass-panel rounded-3xl border border-slate-800 p-6 space-y-3">
             <MapPin className="w-10 h-10 text-slate-600 mx-auto" />

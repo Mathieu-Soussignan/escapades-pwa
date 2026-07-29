@@ -7,8 +7,9 @@ import { ActivityModal } from './ActivityModal';
 import { MapView } from '../Map/MapView';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
+import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
 import type { Activity, WeatherData } from '../../types';
-import { Plus, Calendar, Sparkles, MapPin, Clock, Map, List, CloudRain, Share2, Loader2, Zap, Utensils, Send, MessageSquare } from 'lucide-react';
+import { Plus, Calendar, Sparkles, MapPin, Clock, Map, List, CloudRain, Share2, Loader2, Zap, Utensils, Send, MessageSquare, DollarSign, Wallet } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
   const { activeTripId, setActiveTripId, setActiveTab, showToast } = useApp();
@@ -21,6 +22,14 @@ export const TimelineView: React.FC = () => {
   const days = useLiveQuery(
     () => (activeTrip?.id ? db.days.where('tripId').equals(activeTrip.id).toArray() : []),
     [activeTrip?.id]
+  );
+
+  const dayIds = days?.map(d => d.id!) || [];
+
+  // Live Query for all activities of the active trip (for total cost calculation)
+  const allTripActivities = useLiveQuery(
+    () => (dayIds.length > 0 ? db.activities.where('dayId').anyOf(dayIds).toArray() : []),
+    [dayIds.join(',')]
   );
 
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null);
@@ -64,6 +73,17 @@ export const TimelineView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
+  // Dynamic Total Estimated Costs Calculations
+  const tripTotalEstimatedCost = allTripActivities?.reduce(
+    (acc, act) => acc + parsePriceEstimate(act.priceEstimate),
+    0
+  ) || 0;
+
+  const dayTotalEstimatedCost = activities?.reduce(
+    (acc, act) => acc + parsePriceEstimate(act.priceEstimate),
+    0
+  ) || 0;
+
   const handleToggleComplete = async (id: number, currentCompleted: boolean) => {
     await db.activities.update(id, { completed: !currentCompleted });
   };
@@ -83,7 +103,6 @@ export const TimelineView: React.FC = () => {
     }
   };
 
-  // Custom AI Prompt Submit handler
   const handleCustomAIPromptSubmit = async (e?: React.FormEvent, presetInstruction?: string) => {
     if (e) e.preventDefault();
     const instruction = presetInstruction || customAIPrompt;
@@ -140,7 +159,6 @@ export const TimelineView: React.FC = () => {
     }
   };
 
-  // Preset Re-Plan
   const handleRePlanDay = async (mode: 'rain' | 'lighter' | 'epicurean') => {
     if (!selectedDay || !activities || !activeTrip) return;
     setIsReoptimizing(true);
@@ -192,19 +210,19 @@ export const TimelineView: React.FC = () => {
     }
   };
 
-  // Share Itinerary for WhatsApp / iMessage
   const handleShareItinerary = () => {
     if (!selectedDay || !activities) return;
 
     let text = `🗓️ *${activeTrip?.destination} — ${selectedDay.title}*\n`;
-    text += `📝 ${selectedDay.summary}\n\n`;
+    text += `📝 ${selectedDay.summary}\n`;
+    text += `💰 Estimation jour: ${formatPrice(dayTotalEstimatedCost, activeTrip?.currency)}\n\n`;
 
     activities.forEach(a => {
-      text += `⏱️ *${a.time}* : ${a.title}\n📍 ${a.locationName}\n\n`;
+      text += `⏱️ *${a.time}* : ${a.title} ${a.priceEstimate ? `(${a.priceEstimate})` : ''}\n📍 ${a.locationName}\n\n`;
     });
 
     navigator.clipboard.writeText(text);
-    showToast('Planning copié dans le presse-papier ! (Prêt à coller sur WhatsApp)');
+    showToast('Planning copié dans le presse-papier !');
   };
 
   const completedCount = activities?.filter(a => a.completed).length || 0;
@@ -248,8 +266,8 @@ export const TimelineView: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
 
         <div className="relative z-10 flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                 <MapPin className="w-3 h-3 text-rose-400" />
                 {activeTrip.destination}
@@ -262,6 +280,12 @@ export const TimelineView: React.FC = () => {
                   <span>{weather.temperature}°C</span>
                 </span>
               )}
+
+              {/* DYNAMIC ESTIMATED TOTAL TRIP COST BADGE */}
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                <Wallet className="w-3 h-3 text-emerald-400" />
+                Est. Séjour: ~{formatPrice(tripTotalEstimatedCost, activeTrip.currency)}
+              </span>
             </div>
 
             <h2 className="text-xl font-extrabold text-white tracking-tight font-display">
@@ -313,7 +337,7 @@ export const TimelineView: React.FC = () => {
         )}
       </div>
 
-      {/* Selected Day Header & AI Custom Prompt Bar */}
+      {/* Selected Day Header & Dynamic Daily Cost */}
       {selectedDay && (
         <div className="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
@@ -322,6 +346,11 @@ export const TimelineView: React.FC = () => {
             </h3>
 
             <div className="flex items-center gap-2">
+              {/* Dynamic Daily Cost Badge */}
+              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                Est. Jour: ~{formatPrice(dayTotalEstimatedCost, activeTrip.currency)}
+              </span>
+
               <button
                 onClick={() => setShowAIPromptBar(!showAIPromptBar)}
                 className={`p-1.5 rounded-xl border transition-all text-xs font-semibold flex items-center gap-1 ${
@@ -332,7 +361,6 @@ export const TimelineView: React.FC = () => {
                 title="Modifier avec l’IA"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Modifier par AI</span>
               </button>
 
               <button
@@ -342,10 +370,6 @@ export const TimelineView: React.FC = () => {
               >
                 <Share2 className="w-4 h-4" />
               </button>
-
-              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                {progressPercent}% Fait
-              </span>
             </div>
           </div>
 
@@ -372,7 +396,7 @@ export const TimelineView: React.FC = () => {
               <form onSubmit={handleCustomAIPromptSubmit} className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Ex: Remplace le resto par une pizzeria,Décale tout de 1h..."
+                  placeholder="Ex: Remplace le resto par une pizzeria, Décale tout de 1h..."
                   value={customAIPrompt}
                   onChange={(e) => setCustomAIPrompt(e.target.value)}
                   disabled={isReoptimizing}
