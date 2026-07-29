@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db/database';
+import { db, initSeedData } from '../../db/database';
 import { useApp } from '../../context/AppContext';
 import { ActivityCard } from './ActivityCard';
 import { ActivityModal } from './ActivityModal';
@@ -24,8 +24,7 @@ import {
   Utensils, 
   Send, 
   MessageSquare, 
-  Wallet,
-  Compass
+  Wallet
 } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
@@ -43,7 +42,6 @@ export const TimelineView: React.FC = () => {
 
   const dayIds = days?.map(d => d.id!) || [];
 
-  // Live Query for all activities of the active trip (for total cost calculation)
   const allTripActivities = useLiveQuery(
     () => (dayIds.length > 0 ? db.activities.where('dayId').anyOf(dayIds).toArray() : []),
     [dayIds.join(',')]
@@ -54,7 +52,6 @@ export const TimelineView: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isReoptimizing, setIsReoptimizing] = useState(false);
 
-  // Custom AI Prompt Edit State
   const [customAIPrompt, setCustomAIPrompt] = useState('');
   const [showAIPromptBar, setShowAIPromptBar] = useState(false);
 
@@ -90,7 +87,6 @@ export const TimelineView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
-  // Dynamic Total Estimated Costs Calculations
   const tripTotalEstimatedCost = allTripActivities?.reduce(
     (acc, act) => acc + parsePriceEstimate(act.priceEstimate),
     0
@@ -367,7 +363,6 @@ export const TimelineView: React.FC = () => {
               </p>
             </div>
 
-            {/* Action Bar & Daily Cost Badge */}
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full shadow-sm">
                 <Wallet className="w-3 h-3 text-emerald-400" />
@@ -503,10 +498,11 @@ export const TimelineView: React.FC = () => {
       ) : (
         <div className="space-y-3.5 pt-1">
           {activities && activities.length > 0 ? (
-            activities.map((act) => (
+            activities.map((act, index) => (
               <ActivityCard
                 key={act.id}
                 activity={act}
+                prevActivity={index > 0 ? activities[index - 1] : undefined}
                 defaultGPS={defaultGPS}
                 onToggleComplete={handleToggleComplete}
                 onEdit={(actToEdit) => {
