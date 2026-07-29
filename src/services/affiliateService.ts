@@ -4,10 +4,10 @@
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const query = destination ? `${locationName} ${destination}` : locationName;
   const baseUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}`;
-  if (partnerId && partnerId.trim() !== '') {
-    return `${baseUrl}&partner_id=${encodeURIComponent(partnerId.trim())}`;
-  }
-  return baseUrl;
+  
+  // Use user partnerId or default fallback partner ID
+  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
+  return `${baseUrl}&partner_id=${encodeURIComponent(pid)}`;
 }
 
 export function getBookingUrl(destination: string, partnerId: string = ''): string {
