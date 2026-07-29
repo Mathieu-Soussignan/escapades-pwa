@@ -6,9 +6,9 @@ import { ActivityCard } from './ActivityCard';
 import { ActivityModal } from './ActivityModal';
 import { MapView } from '../Map/MapView';
 import { fetchWeatherForDestination } from '../../services/weatherService';
-import { reOptimizeDayWithLLM } from '../../services/llmService';
+import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import type { Activity, WeatherData } from '../../types';
-import { Plus, Calendar, Sparkles, MapPin, Clock, Map, List, CloudRain, Sun, Share2, Loader2, Zap, Utensils } from 'lucide-react';
+import { Plus, Calendar, Sparkles, MapPin, Clock, Map, List, CloudRain, Share2, Loader2, Zap, Utensils, Send, MessageSquare } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
   const { activeTripId, setActiveTripId, setActiveTab, showToast } = useApp();
@@ -28,6 +28,10 @@ export const TimelineView: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isReoptimizing, setIsReoptimizing] = useState(false);
 
+  // Custom AI Prompt Edit State
+  const [customAIPrompt, setCustomAIPrompt] = useState('');
+  const [showAIPromptBar, setShowAIPromptBar] = useState(false);
+
   useEffect(() => {
     if (days && days.length > 0) {
       if (!selectedDayId || !days.some(d => d.id === selectedDayId)) {
@@ -44,7 +48,6 @@ export const TimelineView: React.FC = () => {
     }
   }, [activeTrip, activeTripId]);
 
-  // Fetch Weather
   useEffect(() => {
     if (activeTrip?.destination) {
       fetchWeatherForDestination(activeTrip.destination).then(res => setWeather(res));
@@ -80,11 +83,68 @@ export const TimelineView: React.FC = () => {
     }
   };
 
-  // AI Magic Re-Plan (Il pleut ! / Trop chargé)
+  // Custom AI Prompt Submit handler
+  const handleCustomAIPromptSubmit = async (e?: React.FormEvent, presetInstruction?: string) => {
+    if (e) e.preventDefault();
+    const instruction = presetInstruction || customAIPrompt;
+    if (!instruction.trim() || !selectedDay || !activities || !activeTrip) return;
+
+    setIsReoptimizing(true);
+    showToast('Ajustement du déroulé par l’IA... ✨');
+
+    try {
+      const currentSettings = settings || {
+        llmProvider: 'mistral',
+        apiKey: '',
+        modelName: 'mistral-small-latest',
+        defaultGPS: 'google_maps',
+        theme: 'dark'
+      };
+
+      const newPlan = await customPromptEditDayWithLLM(
+        activeTrip.destination,
+        selectedDay.title,
+        activities,
+        instruction.trim(),
+        currentSettings
+      );
+
+      await db.days.update(selectedDay.id!, {
+        title: newPlan.title,
+        summary: newPlan.summary
+      });
+
+      await db.activities.where('dayId').equals(selectedDay.id!).delete();
+      const newActsToInsert = newPlan.activities.map((a, idx) => ({
+        dayId: selectedDay.id!,
+        time: a.time,
+        title: a.title,
+        description: a.description,
+        category: a.category,
+        locationName: a.locationName,
+        address: a.address,
+        durationMinutes: a.durationMinutes || 60,
+        priceEstimate: a.priceEstimate,
+        completed: false,
+        order: idx + 1
+      }));
+      await db.activities.bulkAdd(newActsToInsert);
+
+      setCustomAIPrompt('');
+      showToast('Journée ajustée selon vos instructions ! ✨');
+    } catch (err: any) {
+      console.error(err);
+      showToast(`Erreur : ${err.message || 'Impossible d’ajuster.'}`);
+    } finally {
+      setIsReoptimizing(false);
+    }
+  };
+
+  // Preset Re-Plan
   const handleRePlanDay = async (mode: 'rain' | 'lighter' | 'epicurean') => {
     if (!selectedDay || !activities || !activeTrip) return;
     setIsReoptimizing(true);
-    showToast('Ré-optimisation par Mistral en cours... ✨');
+    showToast('Ré-optimisation par l’IA en cours... ✨');
 
     try {
       const currentSettings = settings || {
@@ -103,13 +163,11 @@ export const TimelineView: React.FC = () => {
         currentSettings
       );
 
-      // Update Day
       await db.days.update(selectedDay.id!, {
         title: newPlan.title,
         summary: newPlan.summary
       });
 
-      // Clear existing activities & insert new ones
       await db.activities.where('dayId').equals(selectedDay.id!).delete();
       const newActsToInsert = newPlan.activities.map((a, idx) => ({
         dayId: selectedDay.id!,
@@ -255,7 +313,7 @@ export const TimelineView: React.FC = () => {
         )}
       </div>
 
-      {/* Selected Day Header & Re-Plan Bar */}
+      {/* Selected Day Header & AI Custom Prompt Bar */}
       {selectedDay && (
         <div className="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
@@ -265,12 +323,26 @@ export const TimelineView: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowAIPromptBar(!showAIPromptBar)}
+                className={`p-1.5 rounded-xl border transition-all text-xs font-semibold flex items-center gap-1 ${
+                  showAIPromptBar
+                    ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-500/30'
+                    : 'bg-slate-900 text-purple-400 border-purple-500/30 hover:border-purple-400'
+                }`}
+                title="Modifier avec l’IA"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Modifier par AI</span>
+              </button>
+
+              <button
                 onClick={handleShareItinerary}
                 className="p-1.5 text-slate-400 hover:text-blue-400 rounded-lg hover:bg-slate-900"
                 title="Partager sur WhatsApp"
               >
                 <Share2 className="w-4 h-4" />
               </button>
+
               <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                 {progressPercent}% Fait
               </span>
@@ -289,10 +361,59 @@ export const TimelineView: React.FC = () => {
             />
           </div>
 
-          {/* AI Magic Re-Plan Quick Actions Bar */}
+          {/* CUSTOM AI PROMPT INTERACTIVE BAR */}
+          {showAIPromptBar && (
+            <div className="pt-3 border-t border-purple-500/30 space-y-2 animate-fadeIn bg-purple-950/20 p-3 rounded-2xl border border-purple-500/20">
+              <div className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                Demandez à l'IA d'ajuster votre déroulé :
+              </div>
+
+              <form onSubmit={handleCustomAIPromptSubmit} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ex: Remplace le resto par une pizzeria,Décale tout de 1h..."
+                  value={customAIPrompt}
+                  onChange={(e) => setCustomAIPrompt(e.target.value)}
+                  disabled={isReoptimizing}
+                  className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 focus:border-purple-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={isReoptimizing || !customAIPrompt.trim()}
+                  className="px-3 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs flex items-center gap-1 shadow-lg disabled:opacity-50"
+                >
+                  {isReoptimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                </button>
+              </form>
+
+              {/* Suggestions Presets Chips */}
+              <div className="flex flex-wrap gap-1 pt-1">
+                {[
+                  "🍕 Pizzeria typique à midi",
+                  "⏰ Décale tout de +1h",
+                  "🛍️ Pause shopping vintage 16h",
+                  "🚶 Parcours 100% à pied",
+                  "☕ Pause café viennois"
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleCustomAIPromptSubmit(undefined, preset)}
+                    disabled={isReoptimizing}
+                    className="px-2 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-[10px] text-slate-300 hover:text-white hover:border-purple-500/40"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI Presets Quick Actions Bar */}
           <div className="pt-2 border-t border-slate-800/80">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-purple-400" /> IA Magic Re-Plan :
+              <Sparkles className="w-3 h-3 text-purple-400" /> Presets de ré-optimisation :
             </div>
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               <button

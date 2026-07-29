@@ -43,111 +43,64 @@ export async function generateItineraryWithLLM(
 }
 
 // -------------------------------------------------------------
-// AI Magic Re-Plan / Weather Adaptor ("Il pleut !", "Trop chargé", etc.)
+// Custom AI Prompt Editor for Day Itinerary
 // -------------------------------------------------------------
-export async function reOptimizeDayWithLLM(
+export async function customPromptEditDayWithLLM(
   destination: string,
   dayTitle: string,
   currentActivities: Activity[],
-  replanMode: 'rain' | 'lighter' | 'epicurean',
+  userPromptInstruction: string,
   settings: UserSettings
 ): Promise<{ title: string; summary: string; activities: GeneratedDayOutput['activities'] }> {
   if (!settings.apiKey || settings.apiKey.trim().length < 4) {
-    // Offline / Demo Fallback for Re-Plan
+    // Offline / Demo Fallback for Custom Prompt
     await new Promise((res) => setTimeout(res, 1200));
 
-    if (replanMode === 'rain') {
-      return {
-        title: `${dayTitle} (Adapté Pluie 🌧️)`,
-        summary: "Programme ajusté : activités en intérieur, musées, passages couverts et pause chocolat chaud.",
-        activities: [
-          {
-            time: "10:00",
-            title: "Visite du Musée National & Expositions",
-            description: "Au sec ! Découverte des galeries d'art et chef-d'œuvres locaux.",
-            category: "monument",
-            locationName: `Musée des Beaux-Arts, ${destination}`,
-            durationMinutes: 120,
-            priceEstimate: "12 €",
-            completed: false
-          },
-          {
-            time: "12:30",
-            title: "Déjeuner sous les arcades",
-            description: "Bistrot chaleureux à l'abri des intempéries.",
-            category: "restaurant",
-            locationName: `Passage Couvert, ${destination}`,
-            durationMinutes: 90,
-            priceEstimate: "26 €",
-            completed: false
-          },
-          {
-            time: "15:00",
-            title: "Salon de Thé & Pâtisserie artisanale",
-            description: "Pause gourmande et chocolat chaud onctueux.",
-            category: "restaurant",
-            locationName: `Salon de Thé, ${destination}`,
-            durationMinutes: 75,
-            completed: false
-          },
-          {
-            time: "17:30",
-            title: "Séance Cinéma ou Spectacle",
-            description: "Divertissement culturel au chaud.",
-            category: "activity",
-            locationName: `Théâtre / Cinéma, ${destination}`,
-            durationMinutes: 120,
-            completed: false
-          }
-        ]
-      };
-    } else {
-      return {
-        title: `${dayTitle} (Mode Détente 🍷)`,
-        summary: "Rythme plus doux avec temps libre et sélection de lieux épicuriens.",
-        activities: currentActivities.map(a => ({
-          time: a.time,
-          title: a.title,
-          description: a.description,
-          category: a.category,
-          locationName: a.locationName,
-          address: a.address,
-          durationMinutes: a.durationMinutes,
-          priceEstimate: a.priceEstimate,
-          completed: a.completed
-        }))
-      };
-    }
+    return {
+      title: `${dayTitle} (Ajusté par AI ✨)`,
+      summary: `Journée modifiée selon votre demande : "${userPromptInstruction}"`,
+      activities: currentActivities.map((a, idx) => ({
+        time: a.time,
+        title: idx === 1 ? `[Ajusté] ${a.title}` : a.title,
+        description: `${a.description} (Modifié selon : ${userPromptInstruction})`,
+        category: a.category,
+        locationName: a.locationName,
+        address: a.address,
+        durationMinutes: a.durationMinutes,
+        priceEstimate: a.priceEstimate,
+        completed: a.completed
+      }))
+    };
   }
 
-  let promptConstraint = "";
-  if (replanMode === 'rain') {
-    promptConstraint = "ATTENTION IL PLEUT ! Remplace TOUTES les activités extérieures par des activités 100% en intérieur (musées, galeries couvertes, salons de thé, ateliers, dégustations).";
-  } else if (replanMode === 'lighter') {
-    promptConstraint = "Le planning est trop chargé ! Ne garde que 3 étapes clés aérées avec beaucoup de temps libre et de pauses.";
-  } else {
-    promptConstraint = "Mode Épicurien ! Ajoute une dégustation de vins/spécialités, un resto réputé et un super bar pour la soirée.";
-  }
+  const systemPrompt = `Tu es un assistant voyageur AI sur-mesure. 
+Ton rôle est de modifier et ajuster le déroulé d'une journée selon l'instruction précise de l'utilisateur.
+Pour chaque activité, fournis une catégorie parmi ['monument', 'restaurant', 'nature', 'transport', 'hotel', 'activity', 'viewpoint', 'shopping', 'nightlife'].
+Réponds EXCLUSIVEMENT avec un objet JSON structuré (aucun texte autour).`;
 
-  const userPrompt = `Ré-optimise cette journée à ${destination}.
+  const userPrompt = `Ajuste et modifie cette journée d'escapade à ${destination}.
 Titre actuel: ${dayTitle}
-Activités actuelles: ${JSON.stringify(currentActivities.map(a => ({ time: a.time, title: a.title, loc: a.locationName })))}
+Activités actuelles: ${JSON.stringify(currentActivities.map(a => ({ time: a.time, title: a.title, category: a.category, loc: a.locationName, desc: a.description })))}
 
-Contrainte de ré-optimisation: ${promptConstraint}
+INSTRUCTION PRÉCISE DE L'UTILISATEUR POUR MODIFIER LA JOURNÉE:
+"${userPromptInstruction}"
 
-Réponds EXCLUSIVEMENT avec ce JSON structuré :
+Applique cette modification avec précision tout en gardant une journée cohérente, réaliste et agréable.
+
+Format JSON attendu :
 {
-  "title": "Nouveau titre de la journée",
-  "summary": "Nouveau résumé explicatif",
+  "title": "Titre mis à jour",
+  "summary": "Nouveau résumé mis à jour de la journée",
   "activities": [
     {
       "time": "10:00",
       "title": "Titre activité",
-      "description": "Description",
-      "category": "monument",
-      "locationName": "Lieu",
+      "description": "Description mise à jour",
+      "category": "restaurant",
+      "locationName": "Nom du lieu",
+      "address": "Adresse approximative",
       "durationMinutes": 90,
-      "priceEstimate": "15 €"
+      "priceEstimate": "25 €"
     }
   ]
 }`;
@@ -172,7 +125,7 @@ Réponds EXCLUSIVEMENT avec ce JSON structuré :
     body: JSON.stringify({
       model: modelName,
       messages: [
-        { role: 'system', content: 'Tu es un expert en voyages. Réponds toujours avec un JSON valide.' },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
@@ -181,7 +134,7 @@ Réponds EXCLUSIVEMENT avec ce JSON structuré :
   });
 
   if (!res.ok) {
-    throw new Error(`Erreur Re-Plan (${res.status}): ${await res.text()}`);
+    throw new Error(`Erreur Modification AI (${res.status}): ${await res.text()}`);
   }
 
   const data = await res.json();
@@ -191,6 +144,28 @@ Réponds EXCLUSIVEMENT avec ce JSON structuré :
   }
 
   return JSON.parse(content);
+}
+
+// -------------------------------------------------------------
+// AI Magic Re-Plan / Weather Adaptor
+// -------------------------------------------------------------
+export async function reOptimizeDayWithLLM(
+  destination: string,
+  dayTitle: string,
+  currentActivities: Activity[],
+  replanMode: 'rain' | 'lighter' | 'epicurean',
+  settings: UserSettings
+): Promise<{ title: string; summary: string; activities: GeneratedDayOutput['activities'] }> {
+  let promptConstraint = "";
+  if (replanMode === 'rain') {
+    promptConstraint = "ATTENTION IL PLEUT ! Remplace TOUTES les activités extérieures par des activités 100% en intérieur (musées, galeries couvertes, salons de thé, ateliers, dégustations).";
+  } else if (replanMode === 'lighter') {
+    promptConstraint = "Le planning est trop chargé ! Ne garde que 3 étapes clés aérées avec beaucoup de temps libre et de pauses.";
+  } else {
+    promptConstraint = "Mode Épicurien ! Ajoute une dégustation de vins/spécialités, un resto réputé et un super bar pour la soirée.";
+  }
+
+  return customPromptEditDayWithLLM(destination, dayTitle, currentActivities, promptConstraint, settings);
 }
 
 // -------------------------------------------------------------
@@ -227,7 +202,7 @@ Budget: ${req.budget}
 Mode de transport: ${req.transportMode}
 ${req.customNotes ? `Notes particulières: ${req.customNotes}` : ''}
 
-Réponds EXCLUSIVEMENT avec cet objet JSON structuré (sans aucun texte autour) :
+Réponds EXCLUSIVEMENT avec cet objet JSON structuré :
 {
   "title": "Titre inspirant de l'escapade",
   "destination": "${req.destination}",
