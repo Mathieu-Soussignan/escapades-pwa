@@ -62,11 +62,19 @@ export function cleanDestinationName(destination: string): string {
 }
 
 /**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — 100% Garantie 0 error 404)
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — 100% Target Local Region)
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const cleanCity = destination ? cleanDestinationName(destination) : '';
-  const query = cleanCity ? `${locationName} ${cleanCity}` : locationName;
+  
+  // Prioritize city/destination first so GetYourGuide NEVER returns random foreign countries
+  let query = cleanCity || 'France';
+  if (cleanCity && locationName) {
+    query = `${cleanCity} ${locationName}`;
+  } else if (!cleanCity && locationName) {
+    query = locationName;
+  }
+
   const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
   return `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}&partner_id=${encodeURIComponent(pid)}`;
 }
@@ -106,14 +114,12 @@ export function getCarRentalUrl(_destination?: string, _partnerId: string = ''):
 }
 
 /**
-  6. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide & Klook)
+  6. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide Direct)
  */
 export function getKlookActivityUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   return getGetYourGuideUrl(locationName, destination, partnerId);
 }
 
 export function getTripadvisorUrl(locationName: string, destination?: string): string {
-  const cleanCity = destination ? cleanDestinationName(destination) : '';
-  const query = cleanCity ? `${locationName} ${cleanCity}` : locationName;
-  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}&partner_id=DHWS2LP`;
+  return getGetYourGuideUrl(locationName, destination);
 }

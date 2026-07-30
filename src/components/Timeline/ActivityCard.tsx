@@ -25,6 +25,7 @@ interface ActivityCardProps {
   prevActivity?: Activity;
   defaultGPS: GPSApp;
   partnerId?: string;
+  destination?: string;
   onToggleComplete: (id: number, currentCompleted: boolean) => void;
   onEdit: (activity: Activity) => void;
   onDelete: (id: number) => void;
@@ -35,6 +36,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   prevActivity,
   defaultGPS,
   partnerId,
+  destination,
   onToggleComplete,
   onEdit,
   onDelete
@@ -73,7 +75,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   ) : null;
 
   const showTicketButton = ['monument', 'culture', 'activity', 'nature', 'museum'].includes(activity.category);
-  const ticketUrl = getGetYourGuideUrl(activity.locationName, undefined, partnerId);
+  const ticketUrl = getGetYourGuideUrl(activity.locationName, destination, partnerId);
 
   return (
     <div className="space-y-2">

@@ -577,6 +577,7 @@ export const TimelineView: React.FC = () => {
                 prevActivity={index > 0 ? activities[index - 1] : undefined}
                 defaultGPS={defaultGPS}
                 partnerId={partnerId}
+                destination={activeTrip?.destination}
                 onToggleComplete={handleToggleComplete}
                 onEdit={(actToEdit) => {
                   setEditingActivity(actToEdit);
