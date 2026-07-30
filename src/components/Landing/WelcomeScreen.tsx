@@ -11,12 +11,29 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onOpenSurprise
 }) => {
   const [isExiting, setIsExiting] = useState(false);
+  const [takeoffProgress, setTakeoffProgress] = useState(0);
+  const [takeoffStatus, setTakeoffStatus] = useState("Préparation du vol...");
 
   const handleStartJourney = (action: () => void) => {
     setIsExiting(true);
+    setTakeoffProgress(15);
+    setTakeoffStatus("Vérification de la météo & carte...");
+
+    // Smooth status progression during 1.6s cinematic flight
     setTimeout(() => {
+      setTakeoffProgress(55);
+      setTakeoffStatus("Décollage imminent... ✈️");
+    }, 500);
+
+    setTimeout(() => {
+      setTakeoffProgress(90);
+      setTakeoffStatus("Arrivée sur vos Escapades ! 🌍");
+    }, 1100);
+
+    setTimeout(() => {
+      setTakeoffProgress(100);
       action();
-    }, 850); // 850ms cinematic takeoff transition
+    }, 1600); // 1.6 seconds smooth cinematic flight transition
   };
 
   return (
@@ -27,20 +44,32 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     >
       {/* GOD TIER S++ CINEMATIC TAKEOFF OVERLAY */}
       {isExiting && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center pointer-events-none animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center pointer-events-none animate-fadeIn bg-slate-950/80 backdrop-blur-2xl">
           {/* Expanding Radial Warp Portal */}
           <div className="absolute w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-blue-500/40 via-purple-500/40 to-pink-500/40 blur-3xl animate-ping scale-150" />
           
           {/* Flying Jet Icon Takeoff Animation */}
-          <div className="relative z-10 flex flex-col items-center gap-3 animate-bounce-slow">
+          <div className="relative z-10 flex flex-col items-center gap-4 text-center px-6 max-w-xs">
             <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-1 shadow-2xl shadow-blue-500/50 flex items-center justify-center animate-pulse">
               <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
-                <Plane className="w-12 h-12 text-white animate-spin-slow transform -rotate-45" />
+                <Plane className="w-12 h-12 text-white animate-bounce transform -rotate-45" />
               </div>
             </div>
-            <span className="text-sm font-extrabold text-white tracking-widest font-display uppercase bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent animate-pulse">
-              Décollage en cours... ✈️
-            </span>
+
+            <div className="space-y-1">
+              <span className="text-base font-extrabold text-white font-display tracking-tight">
+                {takeoffStatus}
+              </span>
+              <p className="text-xs text-slate-400">Installez-vous confortablement...</p>
+            </div>
+
+            {/* Cinematic Progress Bar */}
+            <div className="w-full bg-slate-900 border border-slate-800 h-2.5 rounded-full overflow-hidden shadow-inner">
+              <div
+                className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-full rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${takeoffProgress}%` }}
+              />
+            </div>
           </div>
         </div>
       )}
