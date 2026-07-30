@@ -5,12 +5,12 @@ import { TimelineView } from './components/Timeline/TimelineView';
 import { TripList } from './components/Trips/TripList';
 import { AIPlannerWizard } from './components/LLMPlanner/AIPlannerWizard';
 import { SettingsView } from './components/Settings/SettingsView';
-import { LandingHero } from './components/Landing/LandingHero';
+import { WelcomeScreen } from './components/Landing/WelcomeScreen';
 import { OnboardingTourModal } from './components/Onboarding/OnboardingTourModal';
 import { SurprisePlannerModal } from './components/LLMPlanner/SurprisePlannerModal';
 import { db, initSeedData } from './db/database';
 import { requestNotificationPermission, checkAndScheduleTodayReminders } from './services/notificationService';
-import { Sparkles, Bell, Download, Check, Compass } from 'lucide-react';
+import { Sparkles, Bell, Download, Check, Compass, Home } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { activeTab, setActiveTab, activeTripId, setActiveTripId, showToast } = useApp();
@@ -19,9 +19,12 @@ const AppContent: React.FC = () => {
   const [importDataRaw, setImportDataRaw] = useState<any | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<boolean>(false);
 
-  // New Modals for Viral Experience
-  const [showOnboardingTour, setShowOnboardingTour] = useState(false);
-  const [showSurpriseModal, setShowSurpriseModal] = useState(false);
+  // Dedicated Landing Entrance Screen state
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState<boolean>(true);
+
+  // Modals
+  const [showOnboardingTour, setShowOnboardingTour] = useState<boolean>(false);
+  const [showSurpriseModal, setShowSurpriseModal] = useState<boolean>(false);
 
   useEffect(() => {
     initSeedData();
@@ -49,6 +52,7 @@ const AppContent: React.FC = () => {
     const acts = params.get('acts');
 
     if (cloneTitle) {
+      setShowWelcomeScreen(false); // Jump directly into app on QR scan
       setImportedTripTitle(cloneTitle);
       setImportDataRaw({
         title: cloneTitle,
@@ -61,6 +65,7 @@ const AppContent: React.FC = () => {
       const importTripParam = params.get('importTrip');
 
       if (qrdParam) {
+        setShowWelcomeScreen(false);
         try {
           const decoded = decodeURIComponent(qrdParam);
           const parsed = JSON.parse(decoded);
@@ -72,6 +77,7 @@ const AppContent: React.FC = () => {
           console.warn('Failed to parse qrd param:', err);
         }
       } else if (importTripParam) {
+        setShowWelcomeScreen(false);
         try {
           const decoded = decodeURIComponent(escape(atob(importTripParam)));
           const parsed = JSON.parse(decoded);
@@ -184,10 +190,24 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500 selection:text-white pb-20">
       
+      {/* FULLSCREEN WELCOME ENTRANCE SCREEN WITH SMOOTH FLIGHT FADE */}
+      {showWelcomeScreen && (
+        <WelcomeScreen
+          onEnterApp={() => {
+            setShowWelcomeScreen(false);
+            setActiveTab('timeline');
+          }}
+          onOpenSurprise={() => {
+            setShowWelcomeScreen(false);
+            setShowSurpriseModal(true);
+          }}
+        />
+      )}
+
       {/* Top Mobile Bar Header */}
       <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 py-3">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('timeline')}>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setShowWelcomeScreen(true)}>
             <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -197,6 +217,15 @@ const AppContent: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Return to Home Screen Button */}
+            <button
+              onClick={() => setShowWelcomeScreen(true)}
+              className="p-2 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all"
+              title="Retour à l'accueil"
+            >
+              <Home className="w-4 h-4" />
+            </button>
+
             {/* Surprise Inspire-Moi Quick Button */}
             <button
               onClick={() => setShowSurpriseModal(true)}
@@ -268,7 +297,10 @@ const AppContent: React.FC = () => {
       <OnboardingTourModal
         isOpen={showOnboardingTour}
         onClose={() => setShowOnboardingTour(false)}
-        onStartPlanning={() => setActiveTab('ai_planner')}
+        onStartPlanning={() => {
+          setShowWelcomeScreen(false);
+          setActiveTab('ai_planner');
+        }}
       />
 
       {/* Surprise Inspire-Moi Modal */}
