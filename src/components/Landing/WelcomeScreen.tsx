@@ -152,7 +152,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-extrabold text-sm shadow-2xl shadow-blue-500/40 border border-white/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all group cursor-pointer"
             >
               <Compass className="w-5 h-5 group-hover:rotate-45 transition-transform duration-300" />
-              <span>✈️ Embargo : Commencer mon voyage</span>
+              <span>✈️ Embarquement : Commencer mon voyage</span>
               <ArrowRight className="w-4 h-4 ml-auto group-hover:translate-x-1 transition-transform" />
             </button>
 
