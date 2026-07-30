@@ -228,12 +228,11 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                 href={ticketUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs font-semibold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 px-3 py-1.5 rounded-xl transition-all shadow-sm active:scale-95"
-                title="Réserver les billets coupe-file"
+                className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-200 bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/50 ring-1 ring-emerald-400/30 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer hover:scale-105"
+                title="Réserver les billets et visites guidées"
               >
                 <Ticket className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Billets</span>
-                <ExternalLink className="w-3 h-3 text-emerald-400/70" />
+                <span>🎟️ Billets ↗</span>
               </a>
             )}
           </div>

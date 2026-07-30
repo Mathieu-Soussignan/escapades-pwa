@@ -303,41 +303,51 @@ export const TimelineView: React.FC = () => {
                 Est. Séjour: ~{formatPrice(tripTotalEstimatedCost, activeTrip.currency)}
               </span>
 
-              {/* AFFILIATE HOTEL BOOKING BUTTON */}
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-full hover:bg-amber-500/25 transition-all shadow-sm"
-                title="Trouver un hôtel sur Booking.com"
-              >
-                <Building className="w-3 h-3 text-amber-400" />
-                <span>Hôtels</span>
-                <ExternalLink className="w-2.5 h-2.5 text-amber-400/70" />
-              </a>
+            {/* CLICKABLE BOOKING LINKS SECTION WITH EXPLICIT CALLOUT */}
+            <div className="space-y-1.5 pt-1">
+              <div className="text-[10px] font-bold text-amber-400/90 uppercase tracking-wider flex items-center gap-1 font-mono">
+                <span>💡 Réservez en 1 clic :</span>
+              </div>
 
-              {/* AFFILIATE TRAIN / FLIGHT BUTTONS */}
-              <a
-                href={getTrainlineUrl(activeTrip.destination)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-300 bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 rounded-full hover:bg-sky-500/25 transition-all shadow-sm"
-                title="Réserver un billet de train SNCF / Connect"
-              >
-                <span>🚆 Trains</span>
-                <ExternalLink className="w-2.5 h-2.5 text-sky-400/70" />
-              </a>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* AFFILIATE HOTEL BOOKING BUTTON */}
+                <a
+                  href={bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-amber-200 bg-amber-500/20 border border-amber-500/50 ring-1 ring-amber-400/30 px-3 py-1.5 rounded-full hover:bg-amber-500/35 hover:scale-105 transition-all shadow-md active:scale-95 cursor-pointer"
+                  title="Trouver un hôtel sur Booking.com"
+                >
+                  <Building className="w-3.5 h-3.5 text-amber-400" />
+                  <span>🏨 Hôtels</span>
+                  <ExternalLink className="w-3 h-3 text-amber-300" />
+                </a>
 
-              <a
-                href={getFlightUrl(activeTrip.destination, partnerId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-1 rounded-full hover:bg-indigo-500/25 transition-all shadow-sm"
-                title="Comparer et réserver un vol"
-              >
-                <span>✈️ Vols</span>
-                <ExternalLink className="w-2.5 h-2.5 text-indigo-400/70" />
-              </a>
+                {/* AFFILIATE TRAIN BUTTON */}
+                <a
+                  href={getTrainlineUrl(activeTrip.destination)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-sky-200 bg-sky-500/20 border border-sky-500/50 ring-1 ring-sky-400/30 px-3 py-1.5 rounded-full hover:bg-sky-500/35 hover:scale-105 transition-all shadow-md active:scale-95 cursor-pointer"
+                  title="Réserver un billet de train"
+                >
+                  <span>🚆 Trains</span>
+                  <ExternalLink className="w-3 h-3 text-sky-300" />
+                </a>
+
+                {/* AFFILIATE FLIGHT BUTTON */}
+                <a
+                  href={getFlightUrl(activeTrip.destination, partnerId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-indigo-200 bg-indigo-500/20 border border-indigo-500/50 ring-1 ring-indigo-400/30 px-3 py-1.5 rounded-full hover:bg-indigo-500/35 hover:scale-105 transition-all shadow-md active:scale-95 cursor-pointer"
+                  title="Comparer et réserver un vol"
+                >
+                  <span>✈️ Vols</span>
+                  <ExternalLink className="w-3 h-3 text-indigo-300" />
+                </a>
+              </div>
+            </div>
             </div>
 
             <h2 className="text-xl font-extrabold text-white tracking-tight font-display leading-snug">
