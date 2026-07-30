@@ -1,8 +1,9 @@
 /**
   Affiliate Link Generator for Escapades PWA
   - GetYourGuide: Direct Partner ID DHWS2LP
-  - Booking.com & Klook Fallback: Travelpayouts Marker 556489 (Program 3637)
-  - Aviasales: Travelpayouts Marker 556489 (aviasales.tp.st)
+  - Flights (WayAway TP Program 100): Marker 556489
+  - Trains (Omio TP Program 3923): Marker 556489
+  - Hotels (Klook Stays TP Program 3637): Marker 556489
   - Travelpayouts Account ID: 758018
  */
 
@@ -53,32 +54,41 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
 }
 
 /**
-  2. HÔTELS / LOGEMENTS (Booking.com + Fallback Klook TP)
+  2. HÔTELS / LOGEMENTS (Klook Stays TP Program 3637)
  */
 export function getBookingUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  return `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(cleanCity)}&aid=304142&label=tp-${marker}`;
-}
-
-export function getKlookHotelUrl(destination: string, partnerId: string = ''): string {
-  const cleanCity = cleanDestinationName(destination);
-  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  const targetUrl = `https://www.klook.com/fr/search/?query=${encodeURIComponent(cleanCity + ' hôtel')}`;
+  const targetUrl = `https://www.klook.com/fr/hotels/search/?keyword=${encodeURIComponent(cleanCity)}`;
   return `https://tp.media/r?marker=${marker}&p=3637&u=${encodeURIComponent(targetUrl)}`;
 }
 
+export function getKlookHotelUrl(destination: string, partnerId: string = ''): string {
+  return getBookingUrl(destination, partnerId);
+}
+
 /**
-  3. VOLS (Aviasales via Travelpayouts tp.st Link)
+  3. VOLS (Fix 404 Aviasales via WayAway TP Program 100)
  */
 export function getFlightUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  return `https://aviasales.tp.st/search?destination=${encodeURIComponent(cleanCity)}&marker=${marker}`;
+  const targetUrl = `https://wayaway.io/search?destination=${encodeURIComponent(cleanCity)}`;
+  return `https://tp.media/r?marker=${marker}&p=100&u=${encodeURIComponent(targetUrl)}`;
 }
 
 /**
-  4. ACTIVITÉS SECONDAIRES & BILLETS (Klook / Tiqets via Travelpayouts)
+  4. TRAINS (Redirection Omio TP Program 3923)
+ */
+export function getTrainlineUrl(destination: string, partnerId: string = ''): string {
+  const cleanCity = cleanDestinationName(destination);
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  const targetUrl = `https://www.omio.fr/srp/search-page?destination=${encodeURIComponent(cleanCity)}`;
+  return `https://tp.media/r?marker=${marker}&p=3923&u=${encodeURIComponent(targetUrl)}`;
+}
+
+/**
+  5. ACTIVITÉS SECONDAIRES & BILLETS (Klook via Travelpayouts)
  */
 export function getKlookActivityUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const cleanCity = destination ? cleanDestinationName(destination) : '';
@@ -86,14 +96,6 @@ export function getKlookActivityUrl(locationName: string, destination?: string, 
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
   const targetUrl = `https://www.klook.com/fr/search/?query=${encodeURIComponent(query)}`;
   return `https://tp.media/r?marker=${marker}&p=3637&u=${encodeURIComponent(targetUrl)}`;
-}
-
-/**
-  5. TRAINS (Trainline / SNCF Connect)
- */
-export function getTrainlineUrl(destination: string): string {
-  const cleanCity = cleanDestinationName(destination);
-  return `https://www.google.com/search?q=${encodeURIComponent('billet train ' + cleanCity + ' reservation sncf trainline')}`;
 }
 
 export function getTripadvisorUrl(locationName: string, destination?: string): string {
