@@ -137,9 +137,16 @@ export function resolveSmartTourismDestination(destination?: string, locationNam
 }
 
 /**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — God Tier S++ Ultra-Intelligent Regional Tourism Resolver)
-  Maps tiny villages & natural spots to top-level tourism hubs (e.g. Quinson -> Gorges du Verdon)
-  and pairs them with action keywords (e.g. Gorges du Verdon Kayak) for 100% flawless results.
+  Global Trip Excursions & Activities Hub URL (for the top booking bar)
+ */
+export function getGetYourGuideHubUrl(destination?: string, partnerId: string = ''): string {
+  const smartHub = resolveSmartTourismDestination(destination);
+  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
+  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(smartHub)}&partner_id=${encodeURIComponent(pid)}`;
+}
+
+/**
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — Individual Activity Ticket Search)
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const smartHub = resolveSmartTourismDestination(destination, locationName);

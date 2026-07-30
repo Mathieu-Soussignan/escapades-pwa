@@ -74,7 +74,18 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
     activity.latitude, activity.longitude
   ) : null;
 
-  const showTicketButton = ['monument', 'culture', 'activity', 'nature', 'museum'].includes(activity.category);
+  const titleLower = (activity.title || '').toLowerCase();
+  const locationLower = (activity.locationName || '').toLowerCase();
+  const combinedText = `${titleLower} ${locationLower}`;
+
+  const hasBookingKeyword = [
+    'kayak', 'canoe', 'canoë', 'paddle', 'bateau', 'croisiere', 'croisière', 
+    'plongée', 'plongee', 'canyoning', 'colisée', 'colisee', 'vatican', 
+    'eiffel', 'louvre', 'catacombes', 'aquarium', 'zoo', 'parc d\'attractions',
+    'visite guidée', 'visite guidee', 'dégustation', 'degustation'
+  ].some(kw => combinedText.includes(kw));
+
+  const showTicketButton = hasBookingKeyword;
   const ticketUrl = getGetYourGuideUrl(activity.locationName, destination, partnerId);
 
   return (

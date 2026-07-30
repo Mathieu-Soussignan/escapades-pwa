@@ -11,7 +11,7 @@ import { SurprisePlannerModal } from '../LLMPlanner/SurprisePlannerModal';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
-import { getBookingUrl, getTrainlineUrl, getFlightUrl, getCarRentalUrl } from '../../services/affiliateService';
+import { getBookingUrl, getTrainlineUrl, getFlightUrl, getCarRentalUrl, getGetYourGuideHubUrl } from '../../services/affiliateService';
 import type { Activity, WeatherData } from '../../types';
 import { 
   Plus, 
@@ -32,7 +32,8 @@ import {
   Building,
   ExternalLink,
   QrCode,
-  Car
+  Car,
+  Ticket
 } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
@@ -311,6 +312,19 @@ export const TimelineView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {/* GLOBAL GETYOURGUIDE EXCURSIONS & ACTIVITIES BUTTON */}
+                <a
+                  href={getGetYourGuideHubUrl(activeTrip.destination, partnerId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-purple-200 bg-purple-500/20 border border-purple-500/50 ring-1 ring-purple-400/30 px-3 py-1.5 rounded-full hover:bg-purple-500/35 hover:scale-105 transition-all shadow-md active:scale-95 cursor-pointer"
+                  title="Découvrir les excursions, visites & activités du séjour"
+                >
+                  <Ticket className="w-3.5 h-3.5 text-purple-400" />
+                  <span>🎟️ Excursions & Billets</span>
+                  <ExternalLink className="w-3 h-3 text-purple-300" />
+                </a>
+
                 {/* AFFILIATE HOTEL BOOKING BUTTON */}
                 <a
                   href={bookingUrl}
