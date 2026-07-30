@@ -93,11 +93,11 @@ export function getFlightUrl(_destination?: string, partnerId: string = ''): str
 }
 
 /**
-  4. TRAINS (Omio / Trainline Direct — 100% Garantie 0 error 404)
+  4. TRAINS (Omio Home Search — 100% Garantie 0 error 404)
  */
 export function getTrainlineUrl(_destination?: string, partnerId: string = ''): string {
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  return `https://www.omio.fr/billets-de-train?subId=${marker}`;
+  return `https://www.omio.fr/?subId=${marker}`;
 }
 
 /**
