@@ -1,8 +1,8 @@
 /**
-  God Tier S++ Affiliate Link Generator for Escapades PWA
+  God Tier S++ Ultra-Intelligent Affiliate Link Generator for Escapades PWA
   - Klook Active Approved Travelpayouts Partner (Hotels & Stays): 2-5% reward rate
   - GetRentacar Active Approved Travelpayouts Partner (Car Rentals): 10% reward rate, 90-day cookie
-  - GetYourGuide Direct Partner ID: DHWS2LP (God Tier S++ Local Smart Search)
+  - GetYourGuide Direct Partner ID: DHWS2LP (Ultra-Intelligent Regional Tourism Resolver)
   - Aviasales Direct Travelpayouts Marker: 556489
   - Omio Direct Travelpayouts Marker: 556489
   - Travelpayouts Account ID: 758018
@@ -14,107 +14,149 @@ const COUNTRIES_LIST = [
   'belgique', 'maroc', 'croatie', 'islande', 'norvège', 'suède'
 ];
 
-const NATURAL_REGIONS = [
-  'gorges du verdon', 'verdon', 'étang de berre', 'etang de berre',
-  'calanques', 'massif du luberon', 'luberon', 'val de loire',
-  'bassin d\'arcachon', 'camargue', 'cote d\'azur', 'côte d\'azur'
-];
-
-const ACTIVITY_KEYWORDS = [
-  'kayak', 'canoe', 'canoë', 'paddle', 'bateau', 'croisiere', 'croisière', 
-  'plongée', 'plongee', 'canyoning', 'randonnée', 'randonnee', 'trek',
-  'musée', 'musee', 'colisée', 'colisee', 'vatican', 'eiffel', 'louvre',
-  'dégustation', 'degustation', 'vin', 'visite', 'monument', 'château', 'chateau',
-  'catacombes', 'aquarium', 'zoo', 'parc', 'bus'
-];
-
 const META_GPS_TERMS = [
   'ma position gps', 'ma position', 'mon emplacement', 
   'position gps', 'autour de moi', 'geolocalisation', 'géolocalisation', 'gps'
 ];
 
-export function cleanDestinationName(destination: string): string {
-  if (!destination) return 'Provence';
+const ACTIVITY_KEYWORDS: { [key: string]: string } = {
+  'kayak': 'Kayak',
+  'canoe': 'Kayak',
+  'canoë': 'Kayak',
+  'paddle': 'Paddle',
+  'bateau': 'Bateau',
+  'croisiere': 'Croisière',
+  'croisière': 'Croisière',
+  'plongée': 'Plongée',
+  'plongee': 'Plongée',
+  'canyoning': 'Canyoning',
+  'randonnée': 'Randonnée',
+  'randonnee': 'Randonnée',
+  'colisée': 'Colisée',
+  'colisee': 'Colisée',
+  'vatican': 'Vatican',
+  'eiffel': 'Tour Eiffel',
+  'louvre': 'Louvre',
+  'dégustation': 'Dégustation',
+  'degustation': 'Dégustation',
+  'vin': 'Vin',
+  'catacombes': 'Catacombes'
+};
 
-  let clean = destination;
+/**
+  Mapping of tiny villages & natural spots to famous GetYourGuide top-level regional hubs
+ */
+const REGIONAL_HUB_MAP: { [key: string]: string } = {
+  // Verdon & Lac de Sainte-Croix region
+  'quinson': 'Gorges du Verdon',
+  'verdon': 'Gorges du Verdon',
+  'gorges du verdon': 'Gorges du Verdon',
+  'moustiers': 'Gorges du Verdon',
+  'bauduen': 'Gorges du Verdon',
+  'sainte-croix': 'Gorges du Verdon',
+  'riez': 'Gorges du Verdon',
+  'castellane': 'Gorges du Verdon',
 
-  // 1. Check if string contains raw GPS meta terms
-  const isRawMeta = META_GPS_TERMS.some(term => clean.toLowerCase().includes(term));
+  // Calanques & Cassis region
+  'cassis': 'Cassis Calanques',
+  'calanques': 'Cassis Calanques',
+  'port-miou': 'Cassis Calanques',
+  'en-vau': 'Cassis Calanques',
+  'sormiou': 'Calanques Marseille',
+  'morgiou': 'Calanques Marseille',
+  'la ciotat': 'Cassis',
 
-  // 2. Remove all surprise/distance prefixes
-  clean = clean.replace(/Pépite surprise.*de\s+/gi, '');
-  clean = clean.replace(/Pépite surprise.*:\s*/gi, '');
-  clean = clean.replace(/à moins de\s+\d+\s*km\s+de\s+/gi, '');
-  clean = clean.replace(/autour de\s+/gi, '');
-  clean = clean.replace(/Week-end à\s+/gi, '');
-  clean = clean.replace(/Escapade à\s+/gi, '');
-  clean = clean.replace(/Séjour à\s+/gi, '');
+  // Etang de Berre / Aix region
+  'velaux': 'Aix-en-Provence',
+  'rognac': 'Aix-en-Provence',
+  'berre': 'Aix-en-Provence',
+  'vitrolles': 'Aix-en-Provence',
+  'marignane': 'Aix-en-Provence',
+  'étang de berre': 'Aix-en-Provence',
 
-  // 3. Remove GPS meta terms
-  META_GPS_TERMS.forEach(term => {
-    clean = clean.replace(new RegExp(term, 'gi'), '');
-  });
+  // Luberon & Camargue
+  'luberon': 'Luberon',
+  'gordes': 'Luberon',
+  'roussillon': 'Luberon',
+  'lourmarin': 'Luberon',
+  'camargue': 'Camargue',
+  'saintes-maries': 'Camargue',
+  'arles': 'Camargue Arles'
+};
 
-  // 4. Remove all standalone numbers, distances like "50 km", "5.45)", coordinates, symbols
-  clean = clean.replace(/\d+([.,]\d+)?\s*(km)?/gi, '');
-  clean = clean.replace(/[()\[\]{}]/g, '');
+export function resolveSmartTourismDestination(destination?: string, locationName?: string, address?: string): string {
+  const combinedText = `${destination || ''} ${locationName || ''} ${address || ''}`.toLowerCase();
 
-  // 5. Split by comma: e.g. "Marseille, Cassis" or "Rome, Italie"
-  if (clean.includes(',')) {
-    const parts = clean.split(',').map(p => p.trim()).filter(Boolean);
-    
-    const specificCity = parts.reverse().find(p => {
-      const lower = p.toLowerCase().trim();
-      return lower.length >= 3 && !COUNTRIES_LIST.includes(lower) && !NATURAL_REGIONS.includes(lower) && !META_GPS_TERMS.includes(lower);
-    });
-
-    if (specificCity) {
-      clean = specificCity;
-    } else {
-      const cityPart = parts.find(p => p.trim().length >= 3 && !COUNTRIES_LIST.includes(p.toLowerCase().trim()));
-      clean = cityPart || parts[0];
+  // 1. Check if text matches a famous regional hub in our map
+  for (const [key, hub] of Object.entries(REGIONAL_HUB_MAP)) {
+    if (combinedText.includes(key)) {
+      return hub;
     }
   }
 
-  // 6. Remove country names if present in single string
-  const words = clean.split(' ').map(w => w.trim()).filter(w => w.length >= 2);
-  const filteredWords = words.filter(w => !COUNTRIES_LIST.includes(w.toLowerCase()) && !META_GPS_TERMS.includes(w.toLowerCase()));
-  if (filteredWords.length > 0) {
-    clean = filteredWords.join(' ');
+  // 2. Check for major global cities
+  const majorCities = [
+    'rome', 'paris', 'nice', 'lyon', 'marseille', 'annecy', 'bordeaux', 
+    'toulouse', 'venise', 'florence', 'barcelone', 'madrid', 'londres', 
+    'london', 'tokyo', 'kyoto', 'lisbonne', 'porto', 'amsterdam', 'bruxelles'
+  ];
+
+  for (const city of majorCities) {
+    if (combinedText.includes(city)) {
+      return city.charAt(0).toUpperCase() + city.slice(1);
+    }
   }
 
-  // Clean trailing punctuation
-  clean = clean.replace(/[^a-zA-ZÀ-ÿ\s-]/g, '').trim();
+  // 3. Clean raw destination string
+  if (destination) {
+    let clean = destination;
+    clean = clean.replace(/Pépite surprise.*de\s+/gi, '');
+    clean = clean.replace(/Pépite surprise.*:\s*/gi, '');
+    clean = clean.replace(/à moins de\s+\d+\s*km\s+de\s+/gi, '');
+    clean = clean.replace(/autour de\s+/gi, '');
+    clean = clean.replace(/Week-end à\s+/gi, '');
+    clean = clean.replace(/Escapade à\s+/gi, '');
+    clean = clean.replace(/Séjour à\s+/gi, '');
 
-  if (clean.length < 3 || isRawMeta || META_GPS_TERMS.includes(clean.toLowerCase())) {
-    return 'Provence';
+    META_GPS_TERMS.forEach(term => {
+      clean = clean.replace(new RegExp(term, 'gi'), '');
+    });
+
+    clean = clean.replace(/\d+([.,]\d+)?\s*(km)?/gi, '');
+    clean = clean.replace(/[^a-zA-ZÀ-ÿ\s-]/g, '').trim();
+
+    const words = clean.split(' ').map(w => w.trim()).filter(w => w.length >= 3);
+    const validWords = words.filter(w => !COUNTRIES_LIST.includes(w.toLowerCase()) && !META_GPS_TERMS.includes(w.toLowerCase()));
+
+    if (validWords.length > 0) {
+      return validWords.join(' ');
+    }
   }
 
-  return clean;
+  return 'Provence';
 }
 
 /**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — God Tier S++ Local Smart Search)
-  Combines clean city/region with activity action keywords (e.g., "Cassis Kayak", "Rome Colisée")
-  to guarantee GetYourGuide returns 100% relevant local tickets & tours for THAT exact spot.
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — God Tier S++ Ultra-Intelligent Regional Tourism Resolver)
+  Maps tiny villages & natural spots to top-level tourism hubs (e.g. Quinson -> Gorges du Verdon)
+  and pairs them with action keywords (e.g. Gorges du Verdon Kayak) for 100% flawless results.
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
-  let cleanCity = destination ? cleanDestinationName(destination) : '';
+  const smartHub = resolveSmartTourismDestination(destination, locationName);
 
-  // Fallback: if destination returned generic 'Provence', try extracting city from locationName
-  if ((!cleanCity || cleanCity === 'Provence') && locationName) {
-    const extractedFromLocation = cleanDestinationName(locationName);
-    if (extractedFromLocation && extractedFromLocation !== 'Provence') {
-      cleanCity = extractedFromLocation;
+  // Extract action keyword if present
+  const fullText = (locationName || '').toLowerCase();
+  let matchedKeyword = '';
+  for (const [key, label] of Object.entries(ACTIVITY_KEYWORDS)) {
+    if (fullText.includes(key)) {
+      matchedKeyword = label;
+      break;
     }
   }
 
-  const fullText = (locationName || '').toLowerCase();
-  const matchedKeyword = ACTIVITY_KEYWORDS.find(kw => fullText.includes(kw));
-
-  let searchQuery = cleanCity || 'Provence';
-  if (matchedKeyword && cleanCity && cleanCity !== 'Provence') {
-    searchQuery = `${cleanCity} ${matchedKeyword}`;
+  let searchQuery = smartHub;
+  if (matchedKeyword && !smartHub.toLowerCase().includes(matchedKeyword.toLowerCase())) {
+    searchQuery = `${smartHub} ${matchedKeyword}`;
   }
 
   const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
