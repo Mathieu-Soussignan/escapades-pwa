@@ -15,6 +15,23 @@ export interface GeneratedTripPlan {
 }
 
 /**
+  Test if a provided Mistral API key is valid live
+ */
+export async function testMistralApiKey(apiKey: string): Promise<boolean> {
+  try {
+    const res = await fetch('https://api.mistral.ai/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey.trim()}`
+      }
+    });
+    return res.ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
   Main Entrypoint to generate trip or day plans via mistral, gemini, openai, or offline simulator
  */
 export async function generateTripWithLLM(

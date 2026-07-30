@@ -5,18 +5,33 @@ import { TimelineView } from './components/Timeline/TimelineView';
 import { TripList } from './components/Trips/TripList';
 import { AIPlannerWizard } from './components/LLMPlanner/AIPlannerWizard';
 import { SettingsView } from './components/Settings/SettingsView';
+import { LandingHero } from './components/Landing/LandingHero';
+import { OnboardingTourModal } from './components/Onboarding/OnboardingTourModal';
+import { SurprisePlannerModal } from './components/LLMPlanner/SurprisePlannerModal';
 import { db, initSeedData } from './db/database';
 import { requestNotificationPermission, checkAndScheduleTodayReminders } from './services/notificationService';
-import { Sparkles, Bell, Download, Check } from 'lucide-react';
+import { Sparkles, Bell, Download, Check, Compass } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { activeTab, setActiveTab, activeTripId, setActiveTripId, showToast } = useApp();
+  
   const [importedTripTitle, setImportedTripTitle] = useState<string | null>(null);
   const [importDataRaw, setImportDataRaw] = useState<any | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<boolean>(false);
 
+  // New Modals for Viral Experience
+  const [showOnboardingTour, setShowOnboardingTour] = useState(false);
+  const [showSurpriseModal, setShowSurpriseModal] = useState(false);
+
   useEffect(() => {
     initSeedData();
+
+    // Check if user is visiting for the very first time
+    const hasSeenOnboarding = localStorage.getItem('escapades_has_seen_onboarding');
+    if (!hasSeenOnboarding) {
+      setShowOnboardingTour(true);
+      localStorage.setItem('escapades_has_seen_onboarding', 'true');
+    }
   }, []);
 
   useEffect(() => {
@@ -172,7 +187,7 @@ const AppContent: React.FC = () => {
       {/* Top Mobile Bar Header */}
       <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 py-3">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2" onClick={() => setActiveTab('timeline')}>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('timeline')}>
             <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -181,7 +196,17 @@ const AppContent: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* Surprise Inspire-Moi Quick Button */}
+            <button
+              onClick={() => setShowSurpriseModal(true)}
+              className="p-2 rounded-2xl bg-purple-950/40 border border-purple-500/30 text-purple-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition-all"
+              title="✨ Inspire-moi !"
+            >
+              <Compass className="w-4 h-4 text-purple-400" />
+            </button>
+
+            {/* Notification Bell Button */}
             <button
               onClick={handleToggleNotifications}
               className={`p-2 rounded-2xl border transition-all text-xs font-semibold flex items-center gap-1 ${
@@ -238,6 +263,19 @@ const AppContent: React.FC = () => {
         {activeTab === 'ai_planner' && <AIPlannerWizard />}
         {activeTab === 'settings' && <SettingsView />}
       </main>
+
+      {/* Onboarding Tour Modal */}
+      <OnboardingTourModal
+        isOpen={showOnboardingTour}
+        onClose={() => setShowOnboardingTour(false)}
+        onStartPlanning={() => setActiveTab('ai_planner')}
+      />
+
+      {/* Surprise Inspire-Moi Modal */}
+      <SurprisePlannerModal
+        isOpen={showSurpriseModal}
+        onClose={() => setShowSurpriseModal(false)}
+      />
 
       {/* Fixed Bottom Glass TabBar */}
       <TabBar />

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, initSeedData } from '../../db/database';
 import { useApp } from '../../context/AppContext';
 import type { GPSApp } from '../../types';
+import { MistralTutorialModal } from './MistralTutorialModal';
 import { 
   Navigation, 
   Download, 
@@ -10,11 +11,11 @@ import {
   RefreshCw, 
   Smartphone, 
   ShieldCheck, 
-  ExternalLink,
   Sparkles,
   ChevronDown,
   ChevronUp,
-  Sliders
+  Sliders,
+  HelpCircle
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -24,8 +25,8 @@ export const SettingsView: React.FC = () => {
   const [defaultGPS, setDefaultGPS] = useState<GPSApp>('google_maps');
   const [activeOsGuide, setActiveOsGuide] = useState<'ios' | 'android'>('ios');
   
-  // Simple Advanced AI Accordion toggle for non-tech users
   const [showAdvancedAI, setShowAdvancedAI] = useState(false);
+  const [showMistralTutorial, setShowMistralTutorial] = useState(false);
   const [llmProvider, setLlmProvider] = useState<'mistral' | 'gemini' | 'openai' | 'anthropic' | 'custom'>('mistral');
   const [apiKey, setApiKey] = useState('');
   const [modelName, setModelName] = useState('mistral-small-latest');
@@ -58,6 +59,15 @@ export const SettingsView: React.FC = () => {
       });
     }
     showToast('Réglages enregistrés avec succès ! ✨');
+  };
+
+  const handleSaveKeyFromTutorial = async (key: string) => {
+    setApiKey(key);
+    setLlmProvider('mistral');
+    if (settings && settings.id) {
+      await db.settings.update(settings.id, { apiKey: key, llmProvider: 'mistral' });
+    }
+    setShowMistralTutorial(false);
   };
 
   const handleExportData = async () => {
@@ -217,19 +227,31 @@ export const SettingsView: React.FC = () => {
               className="text-purple-400 hover:text-purple-300 text-[11px] font-semibold flex items-center gap-1 bg-purple-950/40 border border-purple-500/30 px-2.5 py-1 rounded-xl"
             >
               <Sliders className="w-3 h-3" />
-              <span>{showAdvancedAI ? 'Masquer l\'option' : 'Clef API perso (Optionnel)'}</span>
+              <span>{showAdvancedAI ? 'Masquer' : 'Clef API perso'}</span>
               {showAdvancedAI ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
           </div>
 
-          <div className="p-3 bg-slate-900/80 rounded-2xl border border-slate-800 text-[11px] text-slate-300 space-y-1">
-            <p className="font-semibold text-emerald-400 flex items-center gap-1">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              L'assistant démo gratuit est actif par défaut !
-            </p>
+          <div className="p-3 bg-slate-900/80 rounded-2xl border border-slate-800 text-[11px] text-slate-300 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-emerald-400 flex items-center gap-1">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                L'assistant démo gratuit est actif par défaut !
+              </p>
+            </div>
             <p className="text-slate-400 leading-relaxed">
               Vous n'avez rien à configurer. L'application génère automatiquement des séjours complets gratuitement.
             </p>
+
+            {/* Easy Tutorial Link Button for End-Users */}
+            <button
+              type="button"
+              onClick={() => setShowMistralTutorial(true)}
+              className="w-full mt-1 py-2 px-3 rounded-xl bg-purple-900/40 border border-purple-500/40 text-purple-200 font-bold text-xs flex items-center justify-center gap-2 hover:bg-purple-800/40 transition-all"
+            >
+              <HelpCircle className="w-4 h-4 text-purple-300" />
+              <span>💡 Comment avoir ma propre clé Mistral IA gratuite ?</span>
+            </button>
           </div>
 
           {/* Optional Advanced AI Key Entry for Power Users */}
@@ -270,9 +292,6 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => setApiKey(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-slate-100 font-mono text-xs focus:border-purple-500 focus:outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Obtenez une clef gratuite sur <a href="https://console.mistral.ai/" target="_blank" rel="noreferrer" className="text-blue-400 underline">console.mistral.ai</a>
-                </p>
               </div>
             </div>
           )}
@@ -323,6 +342,14 @@ export const SettingsView: React.FC = () => {
           Recharger les exemples de démonstration
         </button>
       </div>
+
+      {/* Mistral Tutorial Modal */}
+      <MistralTutorialModal
+        isOpen={showMistralTutorial}
+        onClose={() => setShowMistralTutorial(false)}
+        onSaveKey={handleSaveKeyFromTutorial}
+        initialKey={apiKey}
+      />
 
     </div>
   );

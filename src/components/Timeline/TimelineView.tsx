@@ -6,6 +6,8 @@ import { ActivityCard } from './ActivityCard';
 import { ActivityModal } from './ActivityModal';
 import { MapView } from '../Map/MapView';
 import { QRCodeShareModal } from '../Trips/QRCodeShareModal';
+import { LandingHero } from '../Landing/LandingHero';
+import { SurprisePlannerModal } from '../LLMPlanner/SurprisePlannerModal';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
@@ -60,6 +62,7 @@ export const TimelineView: React.FC = () => {
   const [customAIPrompt, setCustomAIPrompt] = useState('');
   const [showAIPromptBar, setShowAIPromptBar] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showSurpriseModal, setShowSurpriseModal] = useState(false);
 
   useEffect(() => {
     if (days && days.length > 0) {
@@ -254,25 +257,16 @@ export const TimelineView: React.FC = () => {
 
   if (!activeTrip) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4 text-blue-400">
-          <Calendar className="w-8 h-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-100 font-display">Aucune escapade sélectionnée</h2>
-        <p className="text-sm text-slate-400 mt-2 max-w-xs">
-          Créez votre première escapade personnalisée ou lancez la génération par AI !
-        </p>
-
-        <div className="flex flex-col gap-3 mt-6 w-full max-w-xs">
-          <button
-            onClick={() => setActiveTab('ai_planner')}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-semibold shadow-lg shadow-blue-500/25"
-          >
-            <Sparkles className="w-4 h-4" />
-            Générer avec l'AI
-          </button>
-        </div>
-      </div>
+      <>
+        <LandingHero
+          onStartPlanning={() => setActiveTab('ai_planner')}
+          onOpenSurprise={() => setShowSurpriseModal(true)}
+        />
+        <SurprisePlannerModal
+          isOpen={showSurpriseModal}
+          onClose={() => setShowSurpriseModal(false)}
+        />
+      </>
     );
   }
 
@@ -591,6 +585,12 @@ export const TimelineView: React.FC = () => {
           activities={allTripActivities || []}
         />
       )}
+
+      {/* Surprise Planner Modal */}
+      <SurprisePlannerModal
+        isOpen={showSurpriseModal}
+        onClose={() => setShowSurpriseModal(false)}
+      />
     </div>
   );
 };
