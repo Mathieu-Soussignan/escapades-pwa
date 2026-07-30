@@ -13,7 +13,7 @@ export const TabBar: React.FC = () => {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe pt-2 pointer-events-none mb-2">
+    <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe-nav pt-2 pointer-events-none">
       <nav className="max-w-md mx-auto pointer-events-auto bg-slate-900/90 backdrop-blur-2xl rounded-3xl p-1.5 shadow-2xl border border-slate-700/60 flex items-center justify-around">
         {tabs.map((tab) => {
           const Icon = tab.icon;

@@ -4,10 +4,10 @@
 
 @layer base {
   :root {
-    --sat: env(safe-area-inset-top);
-    --sar: env(safe-area-inset-right);
-    --sab: env(safe-area-inset-bottom);
-    --sal: env(safe-area-inset-left);
+    --sat: env(safe-area-inset-top, 44px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 16px);
+    --sal: env(safe-area-inset-left, 0px);
   }
 
   body {
@@ -20,7 +20,7 @@
 
 /* Custom Utilities for iOS PWA look & feel */
 .glass-panel {
-  background: rgba(18, 24, 38, 0.7);
+  background: rgba(18, 24, 38, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -49,13 +49,10 @@
   scrollbar-width: none;
 }
 
-/* iOS Safe areas */
-.pt-safe {
-  padding-top: max(1rem, env(safe-area-inset-top));
+/* iOS Safe areas for Dynamic Island & Notch */
+.pt-safe-header {
+  padding-top: max(48px, calc(env(safe-area-inset-top, 44px) + 6px));
 }
-.pb-safe {
-  padding-bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
-}
-.mb-safe {
-  margin-bottom: env(safe-area-inset-bottom);
+.pb-safe-nav {
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 16px));
 }

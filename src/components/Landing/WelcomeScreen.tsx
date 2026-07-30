@@ -91,7 +91,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-gradient-to-tr from-blue-600/30 via-purple-600/30 to-pink-600/20 blur-3xl rounded-full pointer-events-none" />
 
         {/* Top Header Logo */}
-        <header className="relative z-10 flex items-center justify-between max-w-md mx-auto w-full pt-2">
+        <header className="relative z-10 flex items-center justify-between max-w-md mx-auto w-full pt-safe-header">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
               <Sparkles className="w-5 h-5" />
