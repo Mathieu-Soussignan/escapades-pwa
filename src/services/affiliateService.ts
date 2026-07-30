@@ -1,9 +1,10 @@
 /**
-  Bulletproof Affiliate Link Generator for Escapades PWA
-  - 100% Direct Affiliation & 0 error 404
+  Affiliate Link Generator for Escapades PWA
+  - 100% Direct Travel Merchants (NO Google Search links)
   - GetYourGuide Direct Partner ID: DHWS2LP
   - Booking.com Direct AID: 304142 / Label: tp-556489
-  - Aviasales & Omio Direct Travelpayouts Marker: 556489
+  - Aviasales Direct Travelpayouts Marker: 556489
+  - Omio / Trainline Direct Travelpayouts Marker: 556489
   - Travelpayouts Account ID: 758018
  */
 
@@ -36,7 +37,7 @@ export function cleanDestinationName(destination: string): string {
   if (clean.includes(',')) {
     const parts = clean.split(',').map(p => p.trim()).filter(Boolean);
     
-    // 1. Try finding a specific town that is NOT a country and NOT a natural region
+    // Try finding a specific town that is NOT a country and NOT a natural region
     const specificCity = parts.reverse().find(p => {
       const lower = p.toLowerCase();
       return !COUNTRIES_LIST.includes(lower) && !NATURAL_REGIONS.includes(lower);
@@ -45,7 +46,6 @@ export function cleanDestinationName(destination: string): string {
     if (specificCity) {
       clean = specificCity;
     } else {
-      // Fallback: pick part that is not a country
       const cityPart = parts.find(p => !COUNTRIES_LIST.includes(p.toLowerCase()));
       clean = cityPart || parts[0];
     }
@@ -62,7 +62,7 @@ export function cleanDestinationName(destination: string): string {
 }
 
 /**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — 100% Fonctionnel)
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP)
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const cleanCity = destination ? cleanDestinationName(destination) : '';
@@ -72,7 +72,7 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
 }
 
 /**
-  2. HÔTELS / LOGEMENTS (Booking.com Direct AID 304142 + Label tp-556489 — 100% Fonctionnel)
+  2. HÔTELS / LOGEMENTS (Booking.com Direct AID 304142 + Label tp-556489)
  */
 export function getBookingUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
@@ -85,29 +85,21 @@ export function getKlookHotelUrl(destination: string, partnerId: string = ''): s
 }
 
 /**
-  3. VOLS (Aviasales / Google Flights — 100% Fonctionnel sans 404)
+  3. VOLS (Aviasales Direct avec Marker Travelpayouts 556489)
  */
 export function getFlightUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  
-  // If destination is a major city (e.g. Rome, Paris, Lyon, Tokyo, London, Barcelona)
-  const isMajorCity = ['rome', 'paris', 'lyon', 'nice', 'tokyo', 'londres', 'london', 'barcelone', 'marseille', 'bordeaux', 'toulouse', 'venise', 'florence'].includes(cleanCity.toLowerCase());
-  
-  if (isMajorCity) {
-    return `https://www.aviasales.fr/search?destination=${encodeURIComponent(cleanCity)}&marker=${marker}`;
-  }
-  
-  // For regional/natural destinations, Google Flights auto-detects nearest airport without 404!
-  return `https://www.google.com/travel/flights?q=${encodeURIComponent('vol vers ' + cleanCity)}`;
+  return `https://www.aviasales.fr/search?destination=${encodeURIComponent(cleanCity)}&marker=${marker}`;
 }
 
 /**
-  4. TRAINS (Google Trains / SNCF Connect / Omio — 100% Fonctionnel sans 404)
+  4. TRAINS (Omio Direct avec Marker Travelpayouts 556489 / Trainline)
  */
-export function getTrainlineUrl(destination: string): string {
+export function getTrainlineUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
-  return `https://www.google.com/search?q=${encodeURIComponent('billet train ' + cleanCity + ' omio sncf connect reservation')}`;
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  return `https://www.omio.fr/srp/search-page?destination=${encodeURIComponent(cleanCity)}&subId=${marker}`;
 }
 
 /**
@@ -120,5 +112,5 @@ export function getKlookActivityUrl(locationName: string, destination?: string, 
 export function getTripadvisorUrl(locationName: string, destination?: string): string {
   const cleanCity = destination ? cleanDestinationName(destination) : '';
   const query = cleanCity ? `${locationName} ${cleanCity}` : locationName;
-  return `https://www.google.com/search?q=${encodeURIComponent(query + ' avis tripadvisor reservation')}`;
+  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}&partner_id=DHWS2LP`;
 }
