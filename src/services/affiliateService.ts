@@ -191,10 +191,10 @@ export function getFlightUrl(_destination?: string, partnerId: string = ''): str
 
 /**
   4. TRAINS (Klook Trains Direct — Approved Travelpayouts / Klook Partner ID 758018)
-  Replaces Omio with Klook's official French Train reservation portal (SNCF, TGV, OUIGO, Eurostar).
+  Exact working Klook Trains portal: https://www.klook.com/fr/transport/?target_product_id=4
  */
 export function getTrainlineUrl(_destination?: string, _partnerId: string = ''): string {
-  return `https://www.klook.com/fr/rails/?aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018&aff_pid=758018&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=758018&utm_content=&aff_klick_id=136688366434-api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018-1361174-a552007`;
+  return `https://www.klook.com/fr/transport/?target_product_id=4&aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018&aff_pid=758018&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=758018&utm_content=&aff_klick_id=136688366434-api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018-1361174-a552007`;
 }
 
 /**
