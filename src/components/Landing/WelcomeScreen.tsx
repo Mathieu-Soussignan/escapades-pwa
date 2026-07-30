@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Compass, ArrowRight, MapPin, ShieldCheck, QrCode, CloudSun, Zap, Heart } from 'lucide-react';
+import { Sparkles, Compass, ArrowRight, MapPin, ShieldCheck, QrCode, CloudSun, Zap, Heart, Plane } from 'lucide-react';
 
 interface WelcomeScreenProps {
   onEnterApp: (destination?: string) => void;
@@ -16,18 +16,40 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     setIsExiting(true);
     setTimeout(() => {
       action();
-    }, 600); // 600ms smooth flight transition duration
+    }, 850); // 850ms cinematic takeoff transition
   };
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col justify-between p-6 bg-slate-950 text-slate-100 overflow-y-auto no-scrollbar transition-all duration-700 ease-in-out ${
-        isExiting ? 'opacity-0 scale-105 pointer-events-none filter blur-sm' : 'opacity-100 scale-100'
+      className={`fixed inset-0 z-50 flex flex-col justify-between p-6 bg-slate-950 text-slate-100 overflow-y-auto no-scrollbar transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        isExiting ? 'opacity-0 scale-125 filter blur-xl pointer-events-none' : 'opacity-100 scale-100'
       }`}
     >
+      {/* GOD TIER S++ CINEMATIC TAKEOFF OVERLAY */}
+      {isExiting && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center pointer-events-none animate-fadeIn">
+          {/* Expanding Radial Warp Portal */}
+          <div className="absolute w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-blue-500/40 via-purple-500/40 to-pink-500/40 blur-3xl animate-ping scale-150" />
+          
+          {/* Flying Jet Icon Takeoff Animation */}
+          <div className="relative z-10 flex flex-col items-center gap-3 animate-bounce-slow">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-1 shadow-2xl shadow-blue-500/50 flex items-center justify-center animate-pulse">
+              <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
+                <Plane className="w-12 h-12 text-white animate-spin-slow transform -rotate-45" />
+              </div>
+            </div>
+            <span className="text-sm font-extrabold text-white tracking-widest font-display uppercase bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent animate-pulse">
+              Décollage en cours... ✈️
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Immersive Travel Hero Background Image */}
       <div 
-        className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-luminosity scale-105 animate-pulse-slow"
+        className={`absolute inset-0 bg-cover bg-center transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isExiting ? 'scale-150 opacity-10 filter blur-lg' : 'opacity-35 scale-105'
+        }`}
         style={{ backgroundImage: `url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop')` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-slate-950/90 via-slate-950/80 to-slate-950" />
