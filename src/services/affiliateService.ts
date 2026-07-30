@@ -71,11 +71,10 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
 }
 
 /**
-  2. HÔTELS / LOGEMENTS (Klook Active Travelpayouts Program — 100% Approuvé & 0 error 404)
+  2. HÔTELS / LOGEMENTS (Klook Direct Affiliate Link — Account ID 758018)
  */
 export function getBookingUrl(_destination?: string, _partnerId: string = ''): string {
-  // Official Travelpayouts generated Klook affiliate link for Escapades-pwa
-  return `https://klook.tpx.lu/9DYaJdIM`;
+  return `https://www.klook.com/?aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018&aff_pid=758018&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=758018&utm_content=&aff_klick_id=136688366434-api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018-1361174-a552007`;
 }
 
 export function getKlookHotelUrl(destination: string, partnerId: string = ''): string {
