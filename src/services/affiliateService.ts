@@ -1,9 +1,11 @@
 /**
-  Bulletproof Affiliate Link Generator for Escapades PWA
-  - 100% Error-Free Direct URLs
-  - Travelpayouts Drive Auto-Monetization Script (NTU2NDg5.js) converts them dynamically
+  Affiliate Link Generator for Escapades PWA
+  - 100% Direct Affiliation without tp.media 404 redirect errors
   - GetYourGuide Direct Partner ID: DHWS2LP
   - Booking.com Direct AID: 304142 / Label: tp-556489
+  - Aviasales Direct Travelpayouts Marker: 556489
+  - Omio Direct Travelpayouts Marker: 556489
+  - Travelpayouts Account ID: 758018
  */
 
 const COUNTRIES_LIST = [
@@ -43,7 +45,7 @@ export function cleanDestinationName(destination: string): string {
 }
 
 /**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — 100% Fonctionnel)
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — 100% Affilié & Fonctionnel)
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const cleanCity = destination ? cleanDestinationName(destination) : '';
@@ -53,7 +55,7 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
 }
 
 /**
-  2. HÔTELS / LOGEMENTS (Booking.com Direct AID 304142 + Label tp-556489 — 100% Fonctionnel)
+  2. HÔTELS / LOGEMENTS (Booking.com Direct AID 304142 + Label tp-556489 — 100% Affilié & Fonctionnel)
  */
 export function getBookingUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
@@ -66,19 +68,21 @@ export function getKlookHotelUrl(destination: string, partnerId: string = ''): s
 }
 
 /**
-  3. VOLS (Google Flights / Aviasales Direct — 100% Fonctionnel sans 404)
+  3. VOLS (Aviasales Direct avec Marker Travelpayouts 556489 — 100% Affilié & Fonctionnel sans 404)
  */
 export function getFlightUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
-  return `https://www.google.com/travel/flights?q=${encodeURIComponent('vol vers ' + cleanCity)}`;
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  return `https://www.aviasales.fr/search?destination=${encodeURIComponent(cleanCity)}&marker=${marker}`;
 }
 
 /**
-  4. TRAINS (Google Trains / SNCF Connect Direct — 100% Fonctionnel sans 404)
+  4. TRAINS (Omio / Trainline Direct avec Marker Travelpayouts 556489 — 100% Affilié & Fonctionnel sans 404)
  */
 export function getTrainlineUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
-  return `https://www.google.com/search?q=${encodeURIComponent('billet train ' + cleanCity + ' reservation sncf connect')}`;
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  return `https://www.omio.fr/srp/search-page?destination=${encodeURIComponent(cleanCity)}&subId=${marker}`;
 }
 
 /**
