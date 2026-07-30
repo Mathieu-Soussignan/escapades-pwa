@@ -190,7 +190,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500 selection:text-white pb-20">
       
-      {/* FULLSCREEN WELCOME ENTRANCE SCREEN WITH SMOOTH FLIGHT FADE */}
+      {/* FULLSCREEN WELCOME ENTRANCE SCREEN */}
       {showWelcomeScreen && (
         <WelcomeScreen
           onEnterApp={() => {
@@ -309,8 +309,8 @@ const AppContent: React.FC = () => {
         onClose={() => setShowSurpriseModal(false)}
       />
 
-      {/* Fixed Bottom Glass TabBar */}
-      <TabBar />
+      {/* Fixed Bottom Glass TabBar (ONLY VISIBLE ONCE INSIDE APP) */}
+      {!showWelcomeScreen && <TabBar />}
     </div>
   );
 };
