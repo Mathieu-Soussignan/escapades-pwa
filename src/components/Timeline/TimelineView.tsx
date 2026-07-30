@@ -11,7 +11,7 @@ import { SurprisePlannerModal } from '../LLMPlanner/SurprisePlannerModal';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
-import { getBookingUrl, getTrainlineUrl, getFlightUrl } from '../../services/affiliateService';
+import { getBookingUrl, getTrainlineUrl, getFlightUrl, getCarRentalUrl } from '../../services/affiliateService';
 import type { Activity, WeatherData } from '../../types';
 import { 
   Plus, 
@@ -31,7 +31,8 @@ import {
   Wallet,
   Building,
   ExternalLink,
-  QrCode
+  QrCode,
+  Car
 } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
@@ -345,6 +346,19 @@ export const TimelineView: React.FC = () => {
                 >
                   <span>✈️ Vols</span>
                   <ExternalLink className="w-3 h-3 text-indigo-300" />
+                </a>
+
+                {/* AFFILIATE CAR RENTAL BUTTON */}
+                <a
+                  href={getCarRentalUrl(activeTrip.destination, partnerId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-200 bg-emerald-500/20 border border-emerald-500/50 ring-1 ring-emerald-400/30 px-3 py-1.5 rounded-full hover:bg-emerald-500/35 hover:scale-105 transition-all shadow-md active:scale-95 cursor-pointer"
+                  title="Louer une voiture ou un scooter"
+                >
+                  <Car className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>🚗 Voitures</span>
+                  <ExternalLink className="w-3 h-3 text-emerald-300" />
                 </a>
               </div>
             </div>

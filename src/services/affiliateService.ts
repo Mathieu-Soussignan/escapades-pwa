@@ -4,6 +4,7 @@
   - GetYourGuide Direct Partner ID: DHWS2LP
   - Aviasales Direct Travelpayouts Marker: 556489
   - Omio Direct Travelpayouts Marker: 556489
+  - Economybookings / GetRentacar Direct Travelpayouts Marker: 556489
   - Travelpayouts Account ID: 758018
  */
 
@@ -98,7 +99,16 @@ export function getTrainlineUrl(_destination?: string, partnerId: string = ''): 
 }
 
 /**
-  5. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide & Klook)
+  5. VOITURES & SCOOTERS (Economybookings & GetRentacar — 100% Approuvé & 0 error 404)
+ */
+export function getCarRentalUrl(destination: string, partnerId: string = ''): string {
+  const cleanCity = cleanDestinationName(destination);
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  return `https://www.economybookings.com/fr/car-rental/search?destination=${encodeURIComponent(cleanCity)}&marker=${marker}`;
+}
+
+/**
+  6. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide & Klook)
  */
 export function getKlookActivityUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   return getGetYourGuideUrl(locationName, destination, partnerId);
