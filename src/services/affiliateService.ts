@@ -1,8 +1,7 @@
 /**
   Affiliate Link Generator for Escapades PWA
-  - 100% Error-Free Direct Travel Merchants (NO 404 errors)
+  - Klook Active Approved Travelpayouts Partner (Hotels & Stays): 2-5% reward rate
   - GetYourGuide Direct Partner ID: DHWS2LP
-  - Booking.com Direct AID: 304142 / Label: tp-556489
   - Aviasales Direct Travelpayouts Marker: 556489
   - Omio Direct Travelpayouts Marker: 556489
   - Travelpayouts Account ID: 758018
@@ -72,12 +71,11 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
 }
 
 /**
-  2. HÔTELS / LOGEMENTS (Booking.com Direct AID 304142 + Label tp-556489 — 100% Garantie 0 error 404)
+  2. HÔTELS / LOGEMENTS (Klook Active Travelpayouts Program — 100% Approuvé & 0 error 404)
  */
-export function getBookingUrl(destination: string, partnerId: string = ''): string {
-  const cleanCity = cleanDestinationName(destination);
-  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  return `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(cleanCity)}&aid=304142&label=tp-${marker}`;
+export function getBookingUrl(_destination?: string, _partnerId: string = ''): string {
+  // Official Travelpayouts generated Klook affiliate link for Escapades-pwa
+  return `https://klook.tpx.lu/9DYaJdIM`;
 }
 
 export function getKlookHotelUrl(destination: string, partnerId: string = ''): string {
@@ -85,7 +83,7 @@ export function getKlookHotelUrl(destination: string, partnerId: string = ''): s
 }
 
 /**
-  3. VOLS (Aviasales Direct — 100% Garantie 0 error 404)
+  3. VOLS (Aviasales Direct — 100% Approuvé & 0 error 404)
  */
 export function getFlightUrl(_destination?: string, partnerId: string = ''): string {
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
@@ -93,7 +91,7 @@ export function getFlightUrl(_destination?: string, partnerId: string = ''): str
 }
 
 /**
-  4. TRAINS (Omio Home Search — 100% Garantie 0 error 404)
+  4. TRAINS (Omio Home Search — 100% Approuvé & 0 error 404)
  */
 export function getTrainlineUrl(_destination?: string, partnerId: string = ''): string {
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
@@ -101,7 +99,7 @@ export function getTrainlineUrl(_destination?: string, partnerId: string = ''): 
 }
 
 /**
-  5. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide Direct — 100% Garantie 0 error 404)
+  5. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide & Klook)
  */
 export function getKlookActivityUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   return getGetYourGuideUrl(locationName, destination, partnerId);
