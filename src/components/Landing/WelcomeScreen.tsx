@@ -92,15 +92,20 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         {/* Decorative Glowing Ambient Lights */}
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-blue-600/30 via-purple-600/25 to-pink-600/20 blur-3xl rounded-full pointer-events-none" />
 
-        {/* Top Header Logo */}
+        {/* Top Header Logo with Official Brand Image */}
         <header className="relative z-10 flex items-center justify-between max-w-md mx-auto w-full pt-safe-header">
-          <div className="flex items-center gap-2">
-            <div className="w-9.5 h-9.5 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/40 border border-white/30">
-              <Sparkles className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-white p-1 shadow-xl border border-white/40 flex items-center justify-center overflow-hidden shrink-0">
+              <img src="/escapade_logo.png" alt="Escapades Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="font-black text-2xl tracking-tight font-display text-white drop-shadow-lg">
-              Escapades
-            </span>
+            <div className="flex flex-col text-left">
+              <span className="font-black text-xl tracking-tight font-display text-white drop-shadow-lg leading-none">
+                Escapades
+              </span>
+              <span className="text-[9px] font-semibold text-slate-200 font-sans tracking-wide mt-1 drop-shadow">
+                Votre voyage, uniquement le vôtre
+              </span>
+            </div>
           </div>
 
           <span className="text-[11px] font-bold text-blue-200 bg-slate-900/60 backdrop-blur-xl border border-white/20 px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-xl">

@@ -207,9 +207,9 @@ const AppContent: React.FC = () => {
       {/* Top Mobile Bar Header */}
       <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 px-4 pb-3 pt-safe-header">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setShowWelcomeScreen(true)}>
-            <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
-              <Sparkles className="w-4 h-4" />
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setShowWelcomeScreen(true)}>
+            <div className="w-8 h-8 rounded-2xl bg-white p-0.5 shadow-lg border border-white/30 flex items-center justify-center overflow-hidden shrink-0 hover:scale-105 transition-transform">
+              <img src="/escapade_logo.png" alt="Escapades Logo" className="w-full h-full object-contain" />
             </div>
             <span className="font-extrabold text-lg tracking-tight font-display bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
               Escapades
