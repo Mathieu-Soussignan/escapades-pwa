@@ -1,7 +1,9 @@
 /**
-  Affiliate Link Generator for Travelpayouts, GetYourGuide, Booking.com, Aviasales & Trains
-  Travelpayouts Marker ID: 556489
-  Travelpayouts Account ID: 758018
+  Affiliate Link Generator for Escapades PWA
+  - GetYourGuide: Direct Partner ID DHWS2LP
+  - Booking.com & Klook Fallback: Travelpayouts Marker 556489 (Program 3637)
+  - Aviasales: Travelpayouts Marker 556489 (aviasales.tp.st)
+  - Travelpayouts Account ID: 758018
  */
 
 const COUNTRIES_LIST = [
@@ -40,32 +42,58 @@ export function cleanDestinationName(destination: string): string {
   return clean.trim() || 'Rome';
 }
 
+/**
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — Pas de Travelpayouts)
+ */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const cleanCity = destination ? cleanDestinationName(destination) : '';
   const query = cleanCity ? `${locationName} ${cleanCity}` : locationName;
-  const baseUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}`;
-  
   const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
-  return `${baseUrl}&partner_id=${encodeURIComponent(pid)}`;
+  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}&partner_id=${encodeURIComponent(pid)}`;
 }
 
+/**
+  2. HÔTELS / LOGEMENTS (Booking.com + Fallback Klook TP)
+ */
 export function getBookingUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
   return `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(cleanCity)}&aid=304142&label=tp-${marker}`;
 }
 
-export function getTrainlineUrl(destination: string, partnerId: string = ''): string {
+export function getKlookHotelUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
-  // Google Trains / SNCF Search query that NEVER fails for any destination (Rome, Quinson, Paris, etc.)
-  return `https://www.google.com/search?q=${encodeURIComponent('billet train ' + cleanCity + ' reservation sncf trainline')}`;
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  const targetUrl = `https://www.klook.com/fr/search/?query=${encodeURIComponent(cleanCity + ' hôtel')}`;
+  return `https://tp.media/r?marker=${marker}&p=3637&u=${encodeURIComponent(targetUrl)}`;
 }
 
+/**
+  3. VOLS (Aviasales via Travelpayouts tp.st Link)
+ */
 export function getFlightUrl(destination: string, partnerId: string = ''): string {
   const cleanCity = cleanDestinationName(destination);
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  // Aviasales or Google Flights search query that works 100% for any city in the world
-  return `https://www.google.com/travel/flights?q=${encodeURIComponent('vol vers ' + cleanCity)}`;
+  return `https://aviasales.tp.st/search?destination=${encodeURIComponent(cleanCity)}&marker=${marker}`;
+}
+
+/**
+  4. ACTIVITÉS SECONDAIRES & BILLETS (Klook / Tiqets via Travelpayouts)
+ */
+export function getKlookActivityUrl(locationName: string, destination?: string, partnerId: string = ''): string {
+  const cleanCity = destination ? cleanDestinationName(destination) : '';
+  const query = cleanCity ? `${locationName} ${cleanCity}` : locationName;
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  const targetUrl = `https://www.klook.com/fr/search/?query=${encodeURIComponent(query)}`;
+  return `https://tp.media/r?marker=${marker}&p=3637&u=${encodeURIComponent(targetUrl)}`;
+}
+
+/**
+  5. TRAINS (Trainline / SNCF Connect)
+ */
+export function getTrainlineUrl(destination: string): string {
+  const cleanCity = cleanDestinationName(destination);
+  return `https://www.google.com/search?q=${encodeURIComponent('billet train ' + cleanCity + ' reservation sncf trainline')}`;
 }
 
 export function getTripadvisorUrl(locationName: string, destination?: string): string {
