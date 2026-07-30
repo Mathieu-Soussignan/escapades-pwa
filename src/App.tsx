@@ -207,11 +207,11 @@ const AppContent: React.FC = () => {
       {/* Top Mobile Bar Header */}
       <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 px-4 pb-3 pt-safe-header">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setShowWelcomeScreen(true)}>
-            <div className="w-8 h-8 rounded-2xl bg-white p-0.5 shadow-lg border border-white/30 flex items-center justify-center overflow-hidden shrink-0 hover:scale-105 transition-transform">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowWelcomeScreen(true)}>
+            <div className="w-11 h-11 rounded-2xl bg-white p-1 shadow-xl shadow-blue-500/30 border-2 border-white/80 ring-2 ring-blue-500/30 flex items-center justify-center overflow-hidden shrink-0 hover:scale-105 transition-all">
               <img src="/escapade_logo.png" alt="Escapades Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight font-display bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            <span className="font-extrabold text-xl tracking-tight font-display bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
               Escapades
             </span>
           </div>

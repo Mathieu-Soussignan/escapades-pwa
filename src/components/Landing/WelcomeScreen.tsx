@@ -94,15 +94,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
         {/* Top Header Logo with Official Brand Image */}
         <header className="relative z-10 flex items-center justify-between max-w-md mx-auto w-full pt-safe-header">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-white p-1 shadow-xl border border-white/40 flex items-center justify-center overflow-hidden shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-white p-1.5 shadow-2xl shadow-blue-500/40 border-2 border-white/80 ring-2 ring-blue-500/40 flex items-center justify-center overflow-hidden shrink-0 hover:scale-105 transition-all">
               <img src="/escapade_logo.png" alt="Escapades Logo" className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col text-left">
-              <span className="font-black text-xl tracking-tight font-display text-white drop-shadow-lg leading-none">
+              <span className="font-black text-2xl tracking-tight font-display text-white drop-shadow-xl leading-none">
                 Escapades
               </span>
-              <span className="text-[9px] font-semibold text-slate-200 font-sans tracking-wide mt-1 drop-shadow">
+              <span className="text-[10px] font-bold text-blue-200 font-sans tracking-wide mt-1 drop-shadow">
                 Votre voyage, uniquement le vôtre
               </span>
             </div>
