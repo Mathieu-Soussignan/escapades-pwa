@@ -1,14 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Activity, GPSApp } from '../../types';
 import { openGPS } from '../../services/gpsService';
 import { categoryConfigs } from '../Timeline/CategoryBadge';
-import { ExternalLink, Navigation } from 'lucide-react';
+import { getDestinationCoordinates } from '../../utils/geoUtils';
 
 interface MapViewProps {
   activities: Activity[];
   defaultGPS: GPSApp;
+  destination?: string;
 }
 
 // Fix Leaflet default icon path issue in Vite
@@ -19,20 +20,33 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-export const MapView: React.FC<MapViewProps> = ({ activities, defaultGPS }) => {
+export const MapView: React.FC<MapViewProps> = ({ activities, defaultGPS, destination = 'Annecy' }) => {
   const mapContainerId = "escapades-interactive-map";
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (!activities || activities.length === 0) return;
+    let isMounted = true;
+    getDestinationCoordinates(destination).then((coords) => {
+      if (isMounted) {
+        setMapCenter(coords);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [destination]);
 
-    // Filter activities with valid mock/real coordinates or generate deterministic offset
+  useEffect(() => {
+    if (!activities || activities.length === 0 || !mapCenter) return;
+
+    const baseLat = mapCenter.lat;
+    const baseLng = mapCenter.lng;
+
+    // Filter activities with valid real coordinates or generate deterministic offset around destination center
     const validActivities = activities.map((act, index) => {
       if (act.latitude && act.longitude) {
         return act;
       }
-      // Fallback coordinates based on Annecy / default center
-      const baseLat = 45.8992;
-      const baseLng = 6.1293;
       const offsetLat = (index - activities.length / 2) * 0.008;
       const offsetLng = (index % 2 === 0 ? 1 : -1) * 0.006 * index;
       return {
@@ -42,8 +56,8 @@ export const MapView: React.FC<MapViewProps> = ({ activities, defaultGPS }) => {
       };
     });
 
-    const centerLat = validActivities[0]?.latitude || 45.8992;
-    const centerLng = validActivities[0]?.longitude || 6.1293;
+    const centerLat = validActivities[0]?.latitude || baseLat;
+    const centerLng = validActivities[0]?.longitude || baseLng;
 
     // Initialize Leaflet map
     const map = L.map(mapContainerId, {
@@ -70,8 +84,6 @@ export const MapView: React.FC<MapViewProps> = ({ activities, defaultGPS }) => {
       const pos: L.LatLngExpression = [act.latitude, act.longitude];
       latLngs.push(pos);
 
-      const catInfo = categoryConfigs[act.category] || categoryConfigs.activity;
-
       const customHtmlIcon = L.divIcon({
         className: 'custom-leaflet-marker',
         html: `
@@ -82,7 +94,6 @@ export const MapView: React.FC<MapViewProps> = ({ activities, defaultGPS }) => {
             width: 32px;
             height: 32px;
             display: flex;
-            align-[#000];
             align-items: center;
             justify-content: center;
             color: #fff;
@@ -138,7 +149,7 @@ export const MapView: React.FC<MapViewProps> = ({ activities, defaultGPS }) => {
     return () => {
       map.remove();
     };
-  }, [activities, defaultGPS]);
+  }, [activities, defaultGPS, mapCenter]);
 
   return (
     <div className="relative rounded-3xl overflow-hidden glass-panel border border-slate-800 shadow-xl h-[420px] w-full">

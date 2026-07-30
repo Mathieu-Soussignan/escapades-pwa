@@ -519,7 +519,7 @@ export const TimelineView: React.FC = () => {
 
       {/* Main View: List or Interactive Map */}
       {viewMode === 'map' ? (
-        <MapView activities={activities || []} defaultGPS={defaultGPS} />
+        <MapView activities={activities || []} defaultGPS={defaultGPS} destination={activeTrip?.destination} />
       ) : (
         <div className="space-y-3.5 pt-1">
           {activities && activities.length > 0 ? (
