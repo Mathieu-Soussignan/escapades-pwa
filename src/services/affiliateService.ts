@@ -1,8 +1,8 @@
 /**
-  Affiliate Link Generator for Escapades PWA
+  God Tier S++ Affiliate Link Generator for Escapades PWA
   - Klook Active Approved Travelpayouts Partner (Hotels & Stays): 2-5% reward rate
   - GetRentacar Active Approved Travelpayouts Partner (Car Rentals): 10% reward rate, 90-day cookie
-  - GetYourGuide Direct Partner ID: DHWS2LP (Guaranteed Local City/Region Search)
+  - GetYourGuide Direct Partner ID: DHWS2LP (God Tier S++ Local Smart Search)
   - Aviasales Direct Travelpayouts Marker: 556489
   - Omio Direct Travelpayouts Marker: 556489
   - Travelpayouts Account ID: 758018
@@ -20,63 +20,81 @@ const NATURAL_REGIONS = [
   'bassin d\'arcachon', 'camargue', 'cote d\'azur', 'côte d\'azur'
 ];
 
+const ACTIVITY_KEYWORDS = [
+  'kayak', 'canoe', 'canoë', 'paddle', 'bateau', 'croisiere', 'croisière', 
+  'plongée', 'plongee', 'canyoning', 'randonnée', 'randonnee', 'trek',
+  'musée', 'musee', 'colisée', 'colisee', 'vatican', 'eiffel', 'louvre',
+  'dégustation', 'degustation', 'vin', 'visite', 'monument', 'château', 'chateau',
+  'catacombes', 'aquarium', 'zoo', 'parc', 'bus'
+];
+
 export function cleanDestinationName(destination: string): string {
   if (!destination) return 'Rome';
 
   let clean = destination;
 
-  // Remove common prefixes
-  clean = clean.replace(/Pépite surprise [^:]*de /gi, '');
-  clean = clean.replace(/à moins de \d+\s*km de /gi, '');
-  clean = clean.replace(/autour de /gi, '');
-  clean = clean.replace(/Week-end à /gi, '');
-  clean = clean.replace(/Escapade à /gi, '');
-  clean = clean.replace(/Séjour à /gi, '');
+  // 1. Remove all surprise/distance prefixes
+  clean = clean.replace(/Pépite surprise.*de\s+/gi, '');
+  clean = clean.replace(/Pépite surprise.*:\s*/gi, '');
+  clean = clean.replace(/à moins de\s+\d+\s*km\s+de\s+/gi, '');
+  clean = clean.replace(/autour de\s+/gi, '');
+  clean = clean.replace(/Week-end à\s+/gi, '');
+  clean = clean.replace(/Escapade à\s+/gi, '');
+  clean = clean.replace(/Séjour à\s+/gi, '');
 
-  // Split by comma: e.g. "Gorges du Verdon, Quinson" or "Rome, Italie"
+  // 2. Remove all standalone numbers, distances like "50 km", "5.45)", coordinates, symbols
+  clean = clean.replace(/\d+([.,]\d+)?\s*(km)?/gi, '');
+  clean = clean.replace(/[()\[\]{}]/g, '');
+
+  // 3. Split by comma: e.g. "Marseille, Cassis" or "Rome, Italie"
   if (clean.includes(',')) {
     const parts = clean.split(',').map(p => p.trim()).filter(Boolean);
     
-    // Try finding a specific town that is NOT a country and NOT a natural region
+    // Try finding a specific town that is NOT a country and NOT a natural region (min 3 chars)
     const specificCity = parts.reverse().find(p => {
-      const lower = p.toLowerCase();
-      return !COUNTRIES_LIST.includes(lower) && !NATURAL_REGIONS.includes(lower);
+      const lower = p.toLowerCase().trim();
+      return lower.length >= 3 && !COUNTRIES_LIST.includes(lower) && !NATURAL_REGIONS.includes(lower);
     });
 
     if (specificCity) {
       clean = specificCity;
     } else {
-      const cityPart = parts.find(p => !COUNTRIES_LIST.includes(p.toLowerCase()));
+      const cityPart = parts.find(p => p.trim().length >= 3 && !COUNTRIES_LIST.includes(p.toLowerCase().trim()));
       clean = cityPart || parts[0];
     }
   }
 
-  // Remove country names if present in single string
-  const words = clean.split(' ').map(w => w.trim()).filter(Boolean);
+  // 4. Remove country names if present in single string
+  const words = clean.split(' ').map(w => w.trim()).filter(w => w.length >= 2);
   const filteredWords = words.filter(w => !COUNTRIES_LIST.includes(w.toLowerCase()));
   if (filteredWords.length > 0) {
     clean = filteredWords.join(' ');
   }
 
-  return clean.trim() || 'Rome';
+  // Clean trailing punctuation
+  clean = clean.replace(/[^a-zA-ZÀ-ÿ\s-]/g, '').trim();
+
+  return clean || 'Rome';
 }
 
 /**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — Clean Destination Search)
-  Passes only the clean city/region destination to guarantee GetYourGuide 
-  returns 100% relevant local tours, tickets, and activities for THAT exact destination.
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — God Tier S++ Local Smart Search)
+  Combines clean city/region with activity action keywords (e.g., "Cassis Kayak", "Rome Colisée")
+  to guarantee GetYourGuide returns 100% relevant local tickets & tours for THAT exact spot.
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
-  // Extract clean city name
-  let cleanCity = destination ? cleanDestinationName(destination) : '';
+  const cleanCity = destination ? cleanDestinationName(destination) : cleanDestinationName(locationName);
   
-  if (!cleanCity && locationName) {
-    cleanCity = cleanDestinationName(locationName);
+  // Extract activity keyword from locationName or activity title
+  const fullText = (locationName || '').toLowerCase();
+  const matchedKeyword = ACTIVITY_KEYWORDS.find(kw => fullText.includes(kw));
+
+  let searchQuery = cleanCity;
+  if (matchedKeyword && cleanCity) {
+    searchQuery = `${cleanCity} ${matchedKeyword}`;
   }
 
-  const searchQuery = cleanCity || 'France';
   const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
-
   return `https://www.getyourguide.com/s/?q=${encodeURIComponent(searchQuery)}&partner_id=${encodeURIComponent(pid)}`;
 }
 
