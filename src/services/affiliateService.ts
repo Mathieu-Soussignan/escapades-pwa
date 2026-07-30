@@ -1,10 +1,10 @@
 /**
   Affiliate Link Generator for Escapades PWA
   - Klook Active Approved Travelpayouts Partner (Hotels & Stays): 2-5% reward rate
+  - GetRentacar Active Approved Travelpayouts Partner (Car Rentals): 10% reward rate, 90-day cookie
   - GetYourGuide Direct Partner ID: DHWS2LP
   - Aviasales Direct Travelpayouts Marker: 556489
   - Omio Direct Travelpayouts Marker: 556489
-  - Economybookings / GetRentacar Direct Travelpayouts Marker: 556489
   - Travelpayouts Account ID: 758018
  */
 
@@ -99,12 +99,10 @@ export function getTrainlineUrl(_destination?: string, partnerId: string = ''): 
 }
 
 /**
-  5. VOITURES & SCOOTERS (Economybookings & GetRentacar — 100% Approuvé & 0 error 404)
+  5. VOITURES & SCOOTERS (GetRentacar Official Travelpayouts Link — 10% reward rate, 90-day cookie)
  */
-export function getCarRentalUrl(destination: string, partnerId: string = ''): string {
-  const cleanCity = cleanDestinationName(destination);
-  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  return `https://www.economybookings.com/fr/car-rental/search?destination=${encodeURIComponent(cleanCity)}&marker=${marker}`;
+export function getCarRentalUrl(_destination?: string, _partnerId: string = ''): string {
+  return `https://getrentacar.tpx.lu/g216fbHt`;
 }
 
 /**
