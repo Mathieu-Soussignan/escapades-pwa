@@ -28,12 +28,20 @@ const ACTIVITY_KEYWORDS = [
   'catacombes', 'aquarium', 'zoo', 'parc', 'bus'
 ];
 
+const META_GPS_TERMS = [
+  'ma position gps', 'ma position', 'mon emplacement', 
+  'position gps', 'autour de moi', 'geolocalisation', 'géolocalisation', 'gps'
+];
+
 export function cleanDestinationName(destination: string): string {
-  if (!destination) return 'Rome';
+  if (!destination) return 'Provence';
 
   let clean = destination;
 
-  // 1. Remove all surprise/distance prefixes
+  // 1. Check if string contains raw GPS meta terms
+  const isRawMeta = META_GPS_TERMS.some(term => clean.toLowerCase().includes(term));
+
+  // 2. Remove all surprise/distance prefixes
   clean = clean.replace(/Pépite surprise.*de\s+/gi, '');
   clean = clean.replace(/Pépite surprise.*:\s*/gi, '');
   clean = clean.replace(/à moins de\s+\d+\s*km\s+de\s+/gi, '');
@@ -42,18 +50,22 @@ export function cleanDestinationName(destination: string): string {
   clean = clean.replace(/Escapade à\s+/gi, '');
   clean = clean.replace(/Séjour à\s+/gi, '');
 
-  // 2. Remove all standalone numbers, distances like "50 km", "5.45)", coordinates, symbols
+  // 3. Remove GPS meta terms
+  META_GPS_TERMS.forEach(term => {
+    clean = clean.replace(new RegExp(term, 'gi'), '');
+  });
+
+  // 4. Remove all standalone numbers, distances like "50 km", "5.45)", coordinates, symbols
   clean = clean.replace(/\d+([.,]\d+)?\s*(km)?/gi, '');
   clean = clean.replace(/[()\[\]{}]/g, '');
 
-  // 3. Split by comma: e.g. "Marseille, Cassis" or "Rome, Italie"
+  // 5. Split by comma: e.g. "Marseille, Cassis" or "Rome, Italie"
   if (clean.includes(',')) {
     const parts = clean.split(',').map(p => p.trim()).filter(Boolean);
     
-    // Try finding a specific town that is NOT a country and NOT a natural region (min 3 chars)
     const specificCity = parts.reverse().find(p => {
       const lower = p.toLowerCase().trim();
-      return lower.length >= 3 && !COUNTRIES_LIST.includes(lower) && !NATURAL_REGIONS.includes(lower);
+      return lower.length >= 3 && !COUNTRIES_LIST.includes(lower) && !NATURAL_REGIONS.includes(lower) && !META_GPS_TERMS.includes(lower);
     });
 
     if (specificCity) {
@@ -64,9 +76,9 @@ export function cleanDestinationName(destination: string): string {
     }
   }
 
-  // 4. Remove country names if present in single string
+  // 6. Remove country names if present in single string
   const words = clean.split(' ').map(w => w.trim()).filter(w => w.length >= 2);
-  const filteredWords = words.filter(w => !COUNTRIES_LIST.includes(w.toLowerCase()));
+  const filteredWords = words.filter(w => !COUNTRIES_LIST.includes(w.toLowerCase()) && !META_GPS_TERMS.includes(w.toLowerCase()));
   if (filteredWords.length > 0) {
     clean = filteredWords.join(' ');
   }
@@ -74,7 +86,11 @@ export function cleanDestinationName(destination: string): string {
   // Clean trailing punctuation
   clean = clean.replace(/[^a-zA-ZÀ-ÿ\s-]/g, '').trim();
 
-  return clean || 'Rome';
+  if (clean.length < 3 || isRawMeta || META_GPS_TERMS.includes(clean.toLowerCase())) {
+    return 'Provence';
+  }
+
+  return clean;
 }
 
 /**
@@ -83,14 +99,21 @@ export function cleanDestinationName(destination: string): string {
   to guarantee GetYourGuide returns 100% relevant local tickets & tours for THAT exact spot.
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
-  const cleanCity = destination ? cleanDestinationName(destination) : cleanDestinationName(locationName);
-  
-  // Extract activity keyword from locationName or activity title
+  let cleanCity = destination ? cleanDestinationName(destination) : '';
+
+  // Fallback: if destination returned generic 'Provence', try extracting city from locationName
+  if ((!cleanCity || cleanCity === 'Provence') && locationName) {
+    const extractedFromLocation = cleanDestinationName(locationName);
+    if (extractedFromLocation && extractedFromLocation !== 'Provence') {
+      cleanCity = extractedFromLocation;
+    }
+  }
+
   const fullText = (locationName || '').toLowerCase();
   const matchedKeyword = ACTIVITY_KEYWORDS.find(kw => fullText.includes(kw));
 
-  let searchQuery = cleanCity;
-  if (matchedKeyword && cleanCity) {
+  let searchQuery = cleanCity || 'Provence';
+  if (matchedKeyword && cleanCity && cleanCity !== 'Provence') {
     searchQuery = `${cleanCity} ${matchedKeyword}`;
   }
 
