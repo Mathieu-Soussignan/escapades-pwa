@@ -11,7 +11,7 @@ import { SurprisePlannerModal } from '../LLMPlanner/SurprisePlannerModal';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
-import { getBookingUrl } from '../../services/affiliateService';
+import { getBookingUrl, getTrainlineUrl, getFlightUrl } from '../../services/affiliateService';
 import type { Activity, WeatherData } from '../../types';
 import { 
   Plus, 
@@ -314,6 +314,29 @@ export const TimelineView: React.FC = () => {
                 <Building className="w-3 h-3 text-amber-400" />
                 <span>Hôtels</span>
                 <ExternalLink className="w-2.5 h-2.5 text-amber-400/70" />
+              </a>
+
+              {/* AFFILIATE TRAIN / FLIGHT BUTTONS */}
+              <a
+                href={getTrainlineUrl(activeTrip.destination)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-300 bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 rounded-full hover:bg-sky-500/25 transition-all shadow-sm"
+                title="Réserver un billet de train SNCF / Connect"
+              >
+                <span>🚆 Trains</span>
+                <ExternalLink className="w-2.5 h-2.5 text-sky-400/70" />
+              </a>
+
+              <a
+                href={getFlightUrl(activeTrip.destination, partnerId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-1 rounded-full hover:bg-indigo-500/25 transition-all shadow-sm"
+                title="Comparer et réserver un vol"
+              >
+                <span>✈️ Vols</span>
+                <ExternalLink className="w-2.5 h-2.5 text-indigo-400/70" />
               </a>
             </div>
 

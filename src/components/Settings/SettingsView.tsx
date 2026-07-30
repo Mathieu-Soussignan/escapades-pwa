@@ -15,7 +15,9 @@ import {
   ChevronDown,
   ChevronUp,
   Sliders,
-  HelpCircle
+  HelpCircle,
+  Save,
+  Check
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -30,6 +32,7 @@ export const SettingsView: React.FC = () => {
   const [llmProvider, setLlmProvider] = useState<'mistral' | 'gemini' | 'openai' | 'anthropic' | 'custom'>('mistral');
   const [apiKey, setApiKey] = useState('');
   const [modelName, setModelName] = useState('mistral-small-latest');
+  const [isSavedRecently, setIsSavedRecently] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -40,25 +43,33 @@ export const SettingsView: React.FC = () => {
     }
   }, [settings]);
 
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (settings && settings.id) {
-      await db.settings.update(settings.id, {
-        defaultGPS,
-        llmProvider,
-        apiKey,
-        modelName
-      });
-    } else {
-      await db.settings.add({
-        defaultGPS,
-        llmProvider,
-        apiKey,
-        modelName,
-        theme: 'dark'
-      });
+  const handleSaveSettings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    try {
+      if (settings && settings.id) {
+        await db.settings.update(settings.id, {
+          defaultGPS,
+          llmProvider,
+          apiKey,
+          modelName
+        });
+      } else {
+        await db.settings.add({
+          defaultGPS,
+          llmProvider,
+          apiKey,
+          modelName,
+          theme: 'dark'
+        });
+      }
+      setIsSavedRecently(true);
+      showToast('Préférences enregistrées avec succès ! ✨');
+      setTimeout(() => setIsSavedRecently(false), 3000);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      showToast('Erreur lors de l’enregistrement.');
     }
-    showToast('Réglages enregistrés avec succès ! ✨');
   };
 
   const handleSaveKeyFromTutorial = async (key: string) => {
@@ -68,23 +79,39 @@ export const SettingsView: React.FC = () => {
       await db.settings.update(settings.id, { apiKey: key, llmProvider: 'mistral' });
     }
     setShowMistralTutorial(false);
+    showToast('Clé Mistral enregistrée ! 🔑');
   };
 
+  // iOS WebKit compatible JSON Export Blob Handler
   const handleExportData = async () => {
-    const trips = await db.trips.toArray();
-    const days = await db.days.toArray();
-    const activities = await db.activities.toArray();
+    try {
+      const trips = await db.trips.toArray();
+      const days = await db.days.toArray();
+      const activities = await db.activities.toArray();
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(
-      JSON.stringify({ trips, days, activities }, null, 2)
-    );
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `escapades_backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    showToast('Sauvegarde exportée !');
+      const jsonString = JSON.stringify({ trips, days, activities }, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const fileName = `escapades_backup_${new Date().toISOString().split('T')[0]}.json`;
+
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.href = url;
+      downloadAnchor.download = fileName;
+      downloadAnchor.style.display = 'none';
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(downloadAnchor);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      showToast('Sauvegarde exportée ! 📦');
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur lors de l\'exportation.');
+    }
   };
 
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,7 +131,7 @@ export const SettingsView: React.FC = () => {
           await db.days.bulkAdd(json.days);
           await db.activities.bulkAdd(json.activities);
 
-          showToast('Données restaurées !');
+          showToast('Données restaurées avec succès ! 🎉');
         }
       } catch (err) {
         alert('Fichier JSON invalide.');
@@ -179,8 +206,8 @@ export const SettingsView: React.FC = () => {
         )}
       </div>
 
-      {/* Main Simple Form */}
-      <form onSubmit={handleSaveSettings} className="glass-panel rounded-3xl p-5 border border-slate-800 space-y-4">
+      {/* Main Settings Section */}
+      <div className="glass-panel rounded-3xl p-5 border border-slate-800 space-y-4">
         
         {/* Preferred GPS Selection */}
         <div>
@@ -297,14 +324,30 @@ export const SettingsView: React.FC = () => {
           )}
         </div>
 
+        {/* Save Button supporting both Form Submit and Direct Mobile Click */}
         <button
-          type="submit"
-          className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-lg shadow-blue-500/20 active:scale-[0.99]"
+          type="button"
+          onClick={() => handleSaveSettings()}
+          className={`w-full py-3.5 rounded-2xl font-extrabold text-xs shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer ${
+            isSavedRecently 
+              ? 'bg-emerald-600 text-white shadow-emerald-500/20' 
+              : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-blue-500/25'
+          }`}
         >
-          Enregistrer mes préférences
+          {isSavedRecently ? (
+            <>
+              <Check className="w-4 h-4 text-white" />
+              <span>Préférences enregistrées !</span>
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              <span>Enregistrer mes préférences</span>
+            </>
+          )}
         </button>
 
-      </form>
+      </div>
 
       {/* Data Backup & Restore */}
       <div className="glass-panel rounded-3xl p-5 border border-slate-800 space-y-3">
@@ -315,14 +358,15 @@ export const SettingsView: React.FC = () => {
 
         <div className="grid grid-cols-2 gap-2 pt-1">
           <button
+            type="button"
             onClick={handleExportData}
-            className="flex items-center justify-center gap-1.5 p-2.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold"
+            className="flex items-center justify-center gap-1.5 p-2.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold active:scale-95 transition-transform"
           >
             <Download className="w-4 h-4 text-emerald-400" />
             Sauvegarder
           </button>
 
-          <label className="flex items-center justify-center gap-1.5 p-2.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold cursor-pointer">
+          <label className="flex items-center justify-center gap-1.5 p-2.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold cursor-pointer active:scale-95 transition-transform">
             <Upload className="w-4 h-4 text-blue-400" />
             Restaurer
             <input
@@ -335,6 +379,7 @@ export const SettingsView: React.FC = () => {
         </div>
 
         <button
+          type="button"
           onClick={handleResetSeed}
           className="w-full mt-2 py-2 rounded-xl text-slate-400 hover:text-rose-400 text-[11px] flex items-center justify-center gap-1 hover:bg-rose-500/10 transition-colors"
         >
