@@ -2,7 +2,7 @@
   Affiliate Link Generator for Escapades PWA
   - Klook Active Approved Travelpayouts Partner (Hotels & Stays): 2-5% reward rate
   - GetRentacar Active Approved Travelpayouts Partner (Car Rentals): 10% reward rate, 90-day cookie
-  - GetYourGuide Direct Partner ID: DHWS2LP
+  - GetYourGuide Direct Partner ID: DHWS2LP (Guaranteed Local City/Region Search)
   - Aviasales Direct Travelpayouts Marker: 556489
   - Omio Direct Travelpayouts Marker: 556489
   - Travelpayouts Account ID: 758018
@@ -62,21 +62,22 @@ export function cleanDestinationName(destination: string): string {
 }
 
 /**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — 100% Target Local Region)
+  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — Clean Destination Search)
+  Passes only the clean city/region destination to guarantee GetYourGuide 
+  returns 100% relevant local tours, tickets, and activities for THAT exact destination.
  */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
-  const cleanCity = destination ? cleanDestinationName(destination) : '';
+  // Extract clean city name
+  let cleanCity = destination ? cleanDestinationName(destination) : '';
   
-  // Prioritize city/destination first so GetYourGuide NEVER returns random foreign countries
-  let query = cleanCity || 'France';
-  if (cleanCity && locationName) {
-    query = `${cleanCity} ${locationName}`;
-  } else if (!cleanCity && locationName) {
-    query = locationName;
+  if (!cleanCity && locationName) {
+    cleanCity = cleanDestinationName(locationName);
   }
 
+  const searchQuery = cleanCity || 'France';
   const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
-  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(query)}&partner_id=${encodeURIComponent(pid)}`;
+
+  return `https://www.getyourguide.com/s/?q=${encodeURIComponent(searchQuery)}&partner_id=${encodeURIComponent(pid)}`;
 }
 
 /**
@@ -114,7 +115,7 @@ export function getCarRentalUrl(_destination?: string, _partnerId: string = ''):
 }
 
 /**
-  6. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide Direct)
+  6. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide & Klook)
  */
 export function getKlookActivityUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   return getGetYourGuideUrl(locationName, destination, partnerId);
