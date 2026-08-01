@@ -84,6 +84,42 @@ const REGIONAL_HUB_MAP: { [key: string]: string } = {
   'arles': 'Camargue Arles'
 };
 
+/**
+  Mapping of natural regions, canyons & tiny villages to their REAL major SNCF / TGV Train Hub City
+ */
+const TRAIN_HUB_MAP: { [key: string]: string } = {
+  // Verdon & Lac de Sainte-Croix -> TGV Hub Aix-en-Provence or Marseille
+  'quinson': 'Aix-en-Provence',
+  'verdon': 'Aix-en-Provence',
+  'gorges du verdon': 'Aix-en-Provence',
+  'moustiers': 'Aix-en-Provence',
+  'bauduen': 'Aix-en-Provence',
+  'sainte-croix': 'Aix-en-Provence',
+  'riez': 'Aix-en-Provence',
+  'castellane': 'Nice',
+
+  // Calanques & Cassis -> Marseille or Cassis
+  'cassis': 'Marseille',
+  'calanques': 'Marseille',
+  'port-miou': 'Marseille',
+  'en-vau': 'Marseille',
+
+  // Luberon & Camargue -> Avignon / Arles
+  'luberon': 'Avignon',
+  'gordes': 'Avignon',
+  'roussillon': 'Avignon',
+  'lourmarin': 'Avignon',
+  'camargue': 'Arles',
+  'saintes-maries': 'Arles',
+  'arles': 'Arles',
+
+  // Etang de Berre -> Aix-en-Provence
+  'velaux': 'Aix-en-Provence',
+  'rognac': 'Aix-en-Provence',
+  'berre': 'Aix-en-Provence',
+  'vitrolles': 'Aix-en-Provence'
+};
+
 export function resolveSmartTourismDestination(destination?: string, locationName?: string, address?: string): string {
   const combinedText = `${destination || ''} ${locationName || ''} ${address || ''}`.toLowerCase();
 
@@ -134,6 +170,36 @@ export function resolveSmartTourismDestination(destination?: string, locationNam
   }
 
   return 'Provence';
+}
+
+export function resolveSmartTrainCity(destination?: string, trainStationName?: string): string {
+  const combinedText = `${destination || ''} ${trainStationName || ''}`.toLowerCase();
+
+  // 1. Check for specific natural spots mapped to real train hubs
+  for (const [key, city] of Object.entries(TRAIN_HUB_MAP)) {
+    if (combinedText.includes(key)) {
+      return city;
+    }
+  }
+
+  // 2. Extract city name from station name if provided
+  if (trainStationName) {
+    let cleanStation = trainStationName
+      .replace(/Gare de/gi, '')
+      .replace(/Gare d'/gi, '')
+      .replace(/Gare/gi, '')
+      .replace(/TGV/gi, '')
+      .replace(/SNCF/gi, '')
+      .replace(/\([^)]*\)/g, '')
+      .trim();
+
+    if (cleanStation && cleanStation.length >= 3 && !cleanStation.toLowerCase().includes('verdon')) {
+      return cleanStation;
+    }
+  }
+
+  // 3. Fallback to smart tourism destination hub
+  return resolveSmartTourismDestination(destination);
 }
 
 /**
@@ -199,18 +265,14 @@ export function getFlightUrl(_destinationOrIata?: string, partnerId: string = ''
 
 /**
   4. TRAINS (Klook Trains Direct — Approved Travelpayouts / Klook Partner ID 758018)
-  Pre-searches Klook for Train & Rail passes for the exact destination to eliminate static "Strasbourg -> Paris" default templates.
+  Pre-searches Klook for Train & Rail passes for the real train city hub (e.g. Aix-en-Provence for Gorges du Verdon)
  */
-export function getTrainlineUrl(destination?: string, partnerId: string = ''): string {
-  const smartHub = resolveSmartTourismDestination(destination);
+export function getTrainlineUrl(destination?: string, partnerId: string = '', trainStationName?: string): string {
+  const trainCity = resolveSmartTrainCity(destination, trainStationName);
   const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '758018';
   const affParams = `aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-${pid}&pid=${pid}&aff_pid=${pid}&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=${pid}`;
 
-  if (smartHub) {
-    return `https://www.klook.com/fr/search/?query=${encodeURIComponent('Train ' + smartHub)}&${affParams}`;
-  }
-
-  return `https://www.klook.com/fr/transport/?target_product_id=4&${affParams}`;
+  return `https://www.klook.com/fr/search/?query=${encodeURIComponent('Train ' + trainCity)}&${affParams}`;
 }
 
 /**

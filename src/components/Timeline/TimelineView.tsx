@@ -415,7 +415,7 @@ export const TimelineView: React.FC = () => {
 
                 {/* AFFILIATE TRAIN BUTTON */}
                 <a
-                  href={getTrainlineUrl(activeTrip.destination)}
+                  href={getTrainlineUrl(activeTrip.destination, partnerId, logistics.nearestTrainStation)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-sky-200 bg-sky-500/20 border border-sky-500/50 ring-1 ring-sky-400/30 px-3 py-1.5 rounded-full hover:bg-sky-500/35 hover:scale-105 transition-all shadow-md active:scale-95 cursor-pointer"
@@ -532,7 +532,7 @@ export const TimelineView: React.FC = () => {
               </div>
             </div>
             <a
-              href={getTrainlineUrl(activeTrip.destination)}
+              href={getTrainlineUrl(activeTrip.destination, partnerId, logistics.nearestTrainStation)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] font-extrabold text-sky-300 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 px-2.5 py-1 rounded-xl transition-all shrink-0 cursor-pointer"
