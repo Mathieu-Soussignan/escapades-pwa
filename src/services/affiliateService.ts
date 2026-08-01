@@ -183,30 +183,22 @@ export function getKlookHotelUrl(destination: string, partnerId: string = ''): s
 
 /**
   3. VOLS (Aviasales Direct — 100% Approuvé & 0 error 404)
-  Accepts a destination, IATA code (e.g. GVA, MRS, NCE), or airport string (e.g. "Genève (GVA)")
+  Accepts an IATA code (e.g. GVA, MRS, NCE, FCO, CDG).
+  Strictly uses /search?destination=IATA ONLY when passed a valid 3-letter IATA code,
+  otherwise defaults to home search URL to avoid "search failed to launch" errors.
  */
-export function getFlightUrl(destinationOrAirport?: string, partnerId: string = ''): string {
+export function getFlightUrl(destinationOrIata?: string, partnerId: string = ''): string {
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
   
-  if (destinationOrAirport) {
-    // 1. Check for explicit 3-letter IATA code (e.g. "GVA", "MRS", "NCE", "Genève (GVA)")
-    const iataMatch = destinationOrAirport.match(/\b([A-Z]{3})\b/);
+  if (destinationOrIata) {
+    // Extract 3-letter uppercase IATA code (e.g. "GVA", "MRS", "NCE", "CDG", "FCO")
+    const iataMatch = destinationOrIata.match(/\b([A-Z]{3})\b/);
     if (iataMatch) {
       return `https://www.aviasales.fr/search?destination=${iataMatch[1]}&marker=${marker}`;
     }
-
-    // 2. Clean city/airport name
-    const cleaned = destinationOrAirport
-      .replace(/\([^)]*\)/g, '')
-      .replace(/Aéroport de/gi, '')
-      .replace(/Aéroport/gi, '')
-      .trim();
-
-    if (cleaned && cleaned.length >= 3) {
-      return `https://www.aviasales.fr/search?destination=${encodeURIComponent(cleaned)}&marker=${marker}`;
-    }
   }
 
+  // Safe fallback to Aviasales search engine home with marker
   return `https://www.aviasales.fr/?marker=${marker}`;
 }
 

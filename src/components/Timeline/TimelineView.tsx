@@ -11,7 +11,7 @@ import { SurprisePlannerModal } from '../LLMPlanner/SurprisePlannerModal';
 import { fetchWeatherForDestination } from '../../services/weatherService';
 import { reOptimizeDayWithLLM, customPromptEditDayWithLLM } from '../../services/llmService';
 import { parsePriceEstimate, formatPrice } from '../../utils/costUtils';
-import { getBookingUrl, getTrainlineUrl, getFlightUrl, getCarRentalUrl, getGetYourGuideHubUrl } from '../../services/affiliateService';
+import { getBookingUrl, getTrainlineUrl, getFlightUrl, getCarRentalUrl, getGetYourGuideHubUrl, resolveSmartTourismDestination } from '../../services/affiliateService';
 import type { Activity, WeatherData } from '../../types';
 import { 
   Plus, 
@@ -83,9 +83,83 @@ export const TimelineView: React.FC = () => {
     }
   }, [activeTrip, activeTripId]);
 
+  // Helper to resolve clean, realistic logistics for any trip
+  const getCleanLogistics = (trip?: typeof activeTrip) => {
+    if (!trip) return { nearestAirport: '', airportIata: '', nearestTrainStation: '', recommendedTransport: '' };
+
+    const destLower = (trip.destination || '').toLowerCase();
+    
+    let nearestAirport = trip.nearestAirport;
+    let airportIata = trip.airportIata;
+    let nearestTrainStation = trip.nearestTrainStation;
+    let recommendedTransport = trip.recommendedTransport;
+
+    const isFakeStation = !nearestTrainStation || nearestTrainStation.includes(',') || nearestTrainStation.toLowerCase().includes('gorges du verdon') || nearestTrainStation.toLowerCase().includes('pépite');
+    const isFakeAirport = !nearestAirport || nearestAirport.includes(',') || nearestAirport.toLowerCase().includes('gorges du verdon') || nearestAirport.toLowerCase().includes('pépite');
+
+    if (destLower.includes('verdon') || destLower.includes('quinson') || destLower.includes('moustiers') || destLower.includes('bauduen') || destLower.includes('sainte-croix') || destLower.includes('cassis') || destLower.includes('marseille') || destLower.includes('velaux')) {
+      if (isFakeAirport) {
+        nearestAirport = 'Marseille Provence (MRS)';
+        airportIata = 'MRS';
+      }
+      if (isFakeStation) {
+        nearestTrainStation = destLower.includes('cassis') ? 'Gare de Cassis' : 'Gare d\'Aix-en-Provence TGV';
+      }
+      if (!recommendedTransport) {
+        recommendedTransport = 'TGV + Location de voiture';
+      }
+    } else if (destLower.includes('annecy')) {
+      if (isFakeAirport) {
+        nearestAirport = 'Genève (GVA)';
+        airportIata = 'GVA';
+      }
+      if (isFakeStation) {
+        nearestTrainStation = 'Gare d\'Annecy';
+      }
+      if (!recommendedTransport) {
+        recommendedTransport = 'Train TGV direct ou Voiture';
+      }
+    } else if (destLower.includes('rome')) {
+      if (isFakeAirport) {
+        nearestAirport = 'Rome Fiumicino (FCO)';
+        airportIata = 'FCO';
+      }
+      if (isFakeStation) {
+        nearestTrainStation = 'Roma Termini';
+      }
+      if (!recommendedTransport) {
+        recommendedTransport = 'Vol direct + Métro/Bus';
+      }
+    } else if (destLower.includes('paris')) {
+      if (isFakeAirport) {
+        nearestAirport = 'Paris Charles de Gaulle (CDG)';
+        airportIata = 'CDG';
+      }
+      if (isFakeStation) {
+        nearestTrainStation = 'Gare de Lyon / Gare du Nord';
+      }
+      if (!recommendedTransport) {
+        recommendedTransport = 'TGV ou Vol + Métro RER';
+      }
+    } else {
+      const cleanCity = resolveSmartTourismDestination(trip.destination);
+      if (isFakeStation) nearestTrainStation = `Gare de ${cleanCity}`;
+      if (isFakeAirport) nearestAirport = `Aéroport proche de ${cleanCity}`;
+    }
+
+    return {
+      nearestAirport,
+      airportIata,
+      nearestTrainStation,
+      recommendedTransport
+    };
+  };
+
+  const logistics = getCleanLogistics(activeTrip);
+
   useEffect(() => {
-    if (activeTrip?.destination) {
-      fetchWeatherForDestination(activeTrip.destination).then(res => setWeather(res));
+    if (activeTrip) {
+      fetchWeatherForDestination(activeTrip.destination).then(setWeather);
     }
   }, [activeTrip?.destination]);
 
@@ -440,9 +514,9 @@ export const TimelineView: React.FC = () => {
               <p className="text-[10px] text-slate-400">Logistique recommandée par l'IA</p>
             </div>
           </div>
-          {activeTrip.recommendedTransport && (
+          {logistics.recommendedTransport && (
             <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/20 border border-indigo-500/40 px-2.5 py-1 rounded-full">
-              ⚡ {activeTrip.recommendedTransport}
+              ⚡ {logistics.recommendedTransport}
             </span>
           )}
         </div>
@@ -454,7 +528,7 @@ export const TimelineView: React.FC = () => {
               <span className="text-base">🚆</span>
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Gare SNCF la plus proche</div>
-                <div className="font-semibold text-slate-100">{activeTrip.nearestTrainStation || `Gare de ${activeTrip.destination}`}</div>
+                <div className="font-semibold text-slate-100">{logistics.nearestTrainStation}</div>
               </div>
             </div>
             <a
@@ -474,13 +548,12 @@ export const TimelineView: React.FC = () => {
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Aéroport le plus proche</div>
                 <div className="font-semibold text-slate-100">
-                  {activeTrip.nearestAirport || `Aéroport proche de ${activeTrip.destination}`}
-                  {activeTrip.airportIata && <span className="ml-1 text-blue-400 font-mono">({activeTrip.airportIata})</span>}
+                  {logistics.nearestAirport}
                 </div>
               </div>
             </div>
             <a
-              href={getFlightUrl(activeTrip.airportIata || activeTrip.nearestAirport || activeTrip.destination, partnerId)}
+              href={getFlightUrl(logistics.airportIata || logistics.nearestAirport || activeTrip.destination, partnerId)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] font-extrabold text-indigo-300 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 px-2.5 py-1 rounded-xl transition-all shrink-0 cursor-pointer"
