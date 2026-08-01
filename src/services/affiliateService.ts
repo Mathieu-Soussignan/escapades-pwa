@@ -44,7 +44,7 @@ const ACTIVITY_KEYWORDS: { [key: string]: string } = {
 };
 
 /**
-  Mapping of tiny villages & natural spots to famous GetYourGuide top-level regional hubs
+  Mapping of tiny villages & natural spots to famous GetYourGuide / Klook top-level regional hubs
  */
 const REGIONAL_HUB_MAP: { [key: string]: string } = {
   // Verdon & Lac de Sainte-Croix region
@@ -171,10 +171,17 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
 }
 
 /**
-  2. HÔTELS / LOGEMENTS (Klook Direct Affiliate Link — Account ID 758018)
+  2. HÔTELS / LOGEMENTS (Klook Direct Affiliate Link — Pre-searched by Destination)
  */
-export function getBookingUrl(_destination?: string, _partnerId: string = ''): string {
-  return `https://www.klook.com/?aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018&aff_pid=758018&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=758018&utm_content=&aff_klick_id=136688366434-api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018-1361174-a552007`;
+export function getBookingUrl(destination?: string, partnerId: string = ''): string {
+  const smartHub = resolveSmartTourismDestination(destination);
+  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '758018';
+  const affParams = `aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-${pid}&pid=${pid}&aff_pid=${pid}&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=${pid}`;
+
+  if (smartHub) {
+    return `https://www.klook.com/fr/search/?query=${encodeURIComponent(smartHub)}&${affParams}`;
+  }
+  return `https://www.klook.com/fr/?${affParams}`;
 }
 
 export function getKlookHotelUrl(destination: string, partnerId: string = ''): string {
@@ -183,31 +190,20 @@ export function getKlookHotelUrl(destination: string, partnerId: string = ''): s
 
 /**
   3. VOLS (Aviasales Direct — 100% Approuvé & 0 error 404)
-  Accepts an IATA code (e.g. GVA, MRS, NCE, FCO, CDG).
-  Strictly uses /search?destination=IATA ONLY when passed a valid 3-letter IATA code,
-  otherwise defaults to home search URL to avoid "search failed to launch" errors.
+  Always opens Aviasales official flight search engine in French with active affiliate marker.
  */
-export function getFlightUrl(destinationOrIata?: string, partnerId: string = ''): string {
+export function getFlightUrl(_destinationOrIata?: string, partnerId: string = ''): string {
   const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
-  
-  if (destinationOrIata) {
-    // Extract 3-letter uppercase IATA code (e.g. "GVA", "MRS", "NCE", "CDG", "FCO")
-    const iataMatch = destinationOrIata.match(/\b([A-Z]{3})\b/);
-    if (iataMatch) {
-      return `https://www.aviasales.fr/search?destination=${iataMatch[1]}&marker=${marker}`;
-    }
-  }
-
-  // Safe fallback to Aviasales search engine home with marker
   return `https://www.aviasales.fr/?marker=${marker}`;
 }
 
 /**
   4. TRAINS (Klook Trains Direct — Approved Travelpayouts / Klook Partner ID 758018)
-  Exact working Klook Trains portal: https://www.klook.com/fr/transport/?target_product_id=4
  */
-export function getTrainlineUrl(_destination?: string, _partnerId: string = ''): string {
-  return `https://www.klook.com/fr/transport/?target_product_id=4&aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018&aff_pid=758018&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=758018&utm_content=&aff_klick_id=136688366434-api%7C13694%7C7e9e3ecd53f7420b85b141cd3-758018%7Cpid%7C758018-1361174-a552007`;
+export function getTrainlineUrl(_destination?: string, partnerId: string = ''): string {
+  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '758018';
+  const affParams = `aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-${pid}&pid=${pid}&aff_pid=${pid}&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=${pid}`;
+  return `https://www.klook.com/fr/transport/?target_product_id=4&${affParams}`;
 }
 
 /**
