@@ -199,10 +199,17 @@ export function getFlightUrl(_destinationOrIata?: string, partnerId: string = ''
 
 /**
   4. TRAINS (Klook Trains Direct — Approved Travelpayouts / Klook Partner ID 758018)
+  Pre-searches Klook for Train & Rail passes for the exact destination to eliminate static "Strasbourg -> Paris" default templates.
  */
-export function getTrainlineUrl(_destination?: string, partnerId: string = ''): string {
+export function getTrainlineUrl(destination?: string, partnerId: string = ''): string {
+  const smartHub = resolveSmartTourismDestination(destination);
   const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '758018';
   const affParams = `aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-${pid}&pid=${pid}&aff_pid=${pid}&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=${pid}`;
+
+  if (smartHub) {
+    return `https://www.klook.com/fr/search/?query=${encodeURIComponent('Train ' + smartHub)}&${affParams}`;
+  }
+
   return `https://www.klook.com/fr/transport/?target_product_id=4&${affParams}`;
 }
 
