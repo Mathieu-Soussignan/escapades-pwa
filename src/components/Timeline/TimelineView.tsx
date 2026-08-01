@@ -33,7 +33,8 @@ import {
   ExternalLink,
   QrCode,
   Car,
-  Ticket
+  Ticket,
+  Plane
 } from 'lucide-react';
 
 export const TimelineView: React.FC = () => {
@@ -352,7 +353,7 @@ export const TimelineView: React.FC = () => {
 
                 {/* AFFILIATE FLIGHT BUTTON */}
                 <a
-                  href={getFlightUrl(activeTrip.destination, partnerId)}
+                  href={getFlightUrl(activeTrip.airportIata || activeTrip.nearestAirport || activeTrip.destination, partnerId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-indigo-200 bg-indigo-500/20 border border-indigo-500/50 ring-1 ring-indigo-400/30 px-3 py-1.5 rounded-full hover:bg-indigo-500/35 hover:scale-105 transition-all shadow-md active:scale-95 cursor-pointer"
@@ -425,6 +426,184 @@ export const TimelineView: React.FC = () => {
             })}
           </div>
         )}
+      </div>
+
+      {/* 1. LOGISTIQUE EN HAUT DE PAGE: COMMENT S'Y RENDRE ? */}
+      <div className="glass-panel rounded-3xl p-4 border border-blue-500/30 bg-gradient-to-r from-slate-900/90 via-indigo-950/40 to-slate-900/90 shadow-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-2xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center">
+              <Plane className="w-4 h-4 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm text-white font-display">Comment s'y rendre ?</h3>
+              <p className="text-[10px] text-slate-400">Logistique recommandée par l'IA</p>
+            </div>
+          </div>
+          {activeTrip.recommendedTransport && (
+            <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/20 border border-indigo-500/40 px-2.5 py-1 rounded-full">
+              ⚡ {activeTrip.recommendedTransport}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+          {/* Gare SNCF */}
+          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🚆</span>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Gare SNCF la plus proche</div>
+                <div className="font-semibold text-slate-100">{activeTrip.nearestTrainStation || `Gare de ${activeTrip.destination}`}</div>
+              </div>
+            </div>
+            <a
+              href={getTrainlineUrl(activeTrip.destination)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-extrabold text-sky-300 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 px-2.5 py-1 rounded-xl transition-all shrink-0 cursor-pointer"
+            >
+              Trains ↗
+            </a>
+          </div>
+
+          {/* Aéroport */}
+          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="text-base">✈️</span>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Aéroport le plus proche</div>
+                <div className="font-semibold text-slate-100">
+                  {activeTrip.nearestAirport || `Aéroport proche de ${activeTrip.destination}`}
+                  {activeTrip.airportIata && <span className="ml-1 text-blue-400 font-mono">({activeTrip.airportIata})</span>}
+                </div>
+              </div>
+            </div>
+            <a
+              href={getFlightUrl(activeTrip.airportIata || activeTrip.nearestAirport || activeTrip.destination, partnerId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-extrabold text-indigo-300 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 px-2.5 py-1 rounded-xl transition-all shrink-0 cursor-pointer"
+            >
+              Vols ↗
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. HÔTELS / LOGEMENTS EN 3 GAMMES STRUCTURÉES */}
+      <div className="glass-panel rounded-3xl p-4 border border-amber-500/30 bg-gradient-to-r from-slate-900/90 via-amber-950/20 to-slate-900/90 shadow-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center">
+              <Building className="w-4 h-4 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm text-white font-display">Où séjourner ? (3 Gammes conseillées)</h3>
+              <p className="text-[10px] text-slate-400">Estimations indicatives par nuit par l'IA</p>
+            </div>
+          </div>
+          <a
+            href={bookingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] font-extrabold text-amber-200 bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+          >
+            Tous les hôtels ↗
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
+          {/* Gamme Budget */}
+          <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-extrabold uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                  🌱 Petit Budget
+                </span>
+                <span className="text-[11px] font-mono font-bold text-emerald-300">
+                  {activeTrip.hotelTiers?.budget?.priceEstimate || '~55 € / nuit'}
+                </span>
+              </div>
+              <h4 className="font-bold text-slate-100 text-xs">
+                {activeTrip.hotelTiers?.budget?.name || `Auberge & Hôtels Abordables à ${activeTrip.destination}`}
+              </h4>
+              {activeTrip.hotelTiers?.budget?.description && (
+                <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  {activeTrip.hotelTiers.budget.description}
+                </p>
+              )}
+            </div>
+            <a
+              href={bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full mt-2 py-1.5 text-center text-[10px] font-bold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-xl transition-all cursor-pointer"
+            >
+              Voir la sélection budget ↗
+            </a>
+          </div>
+
+          {/* Gamme Confort */}
+          <div className="p-3 rounded-2xl bg-slate-950/60 border border-blue-500/30 space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-extrabold uppercase text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                  ✨ Confort
+                </span>
+                <span className="text-[11px] font-mono font-bold text-blue-300">
+                  {activeTrip.hotelTiers?.comfort?.priceEstimate || '~115 € / nuit'}
+                </span>
+              </div>
+              <h4 className="font-bold text-slate-100 text-xs">
+                {activeTrip.hotelTiers?.comfort?.name || `Hôtel Boutique 3-4★ à ${activeTrip.destination}`}
+              </h4>
+              {activeTrip.hotelTiers?.comfort?.description && (
+                <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  {activeTrip.hotelTiers.comfort.description}
+                </p>
+              )}
+            </div>
+            <a
+              href={bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full mt-2 py-1.5 text-center text-[10px] font-bold text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 rounded-xl transition-all cursor-pointer"
+            >
+              Voir les hôtels confort ↗
+            </a>
+          </div>
+
+          {/* Gamme Coup de Coeur */}
+          <div className="p-3 rounded-2xl bg-slate-950/60 border border-purple-500/30 space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-extrabold uppercase text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
+                  💎 Coup de Cœur
+                </span>
+                <span className="text-[11px] font-mono font-bold text-purple-300">
+                  {activeTrip.hotelTiers?.luxury?.priceEstimate || '~230 € / nuit'}
+                </span>
+              </div>
+              <h4 className="font-bold text-slate-100 text-xs">
+                {activeTrip.hotelTiers?.luxury?.name || `Domaine d'Exception & Charme à ${activeTrip.destination}`}
+              </h4>
+              {activeTrip.hotelTiers?.luxury?.description && (
+                <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  {activeTrip.hotelTiers.luxury.description}
+                </p>
+              )}
+            </div>
+            <a
+              href={bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full mt-2 py-1.5 text-center text-[10px] font-bold text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 rounded-xl transition-all cursor-pointer"
+            >
+              Voir les séjours d'exception ↗
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Selected Day Header & Dynamic Daily Cost */}

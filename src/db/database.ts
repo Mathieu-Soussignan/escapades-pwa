@@ -65,7 +65,16 @@ export async function initSeedData() {
     budgetGoal: 350,
     currency: "EUR",
     status: "active",
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    nearestAirport: "Genève (GVA)",
+    airportIata: "GVA",
+    nearestTrainStation: "Gare d'Annecy",
+    recommendedTransport: "Train TGV direct ou Voiture",
+    hotelTiers: {
+      budget: { name: "Auberge de Jeunesse du Semnoz", priceEstimate: "50 € / nuit", description: "Propre, ambiance convivial au pied des montagnes." },
+      comfort: { name: "Hôtel Palais de l'Isle 3★", priceEstimate: "115 € / nuit", description: "Au cœur des canaux du vieux Annecy." },
+      luxury: { name: "Le Clos des Sens 5★", priceEstimate: "280 € / nuit", description: "Luxe d'exception avec vue lac & spa." }
+    }
   });
 
   const day1Id = await db.days.add({

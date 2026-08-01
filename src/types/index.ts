@@ -27,6 +27,12 @@ export type CategoryType = ActivityCategory;
 
 export type GPSApp = 'google_maps' | 'waze' | 'apple_maps';
 
+export interface HotelTier {
+  name: string;
+  priceEstimate: string; // e.g. "55 € / nuit"
+  description?: string;
+}
+
 export interface Trip {
   id?: number;
   title: string;
@@ -40,6 +46,19 @@ export interface Trip {
   currency?: string; // 'EUR' | 'USD' | 'GBP' etc.
   status: 'planned' | 'active' | 'completed';
   createdAt: string;
+
+  // Logistics & Transport Info (NEW)
+  nearestAirport?: string; // e.g. "Genève (GVA)" or "Marseille Provence (MRS)"
+  airportIata?: string; // e.g. "GVA" or "MRS"
+  nearestTrainStation?: string; // e.g. "Gare d'Annecy" or "Gare de Cassis"
+  recommendedTransport?: string; // e.g. "Train TGV + Location de voiture"
+
+  // Structured Hotel Tiers (NEW)
+  hotelTiers?: {
+    budget?: HotelTier;
+    comfort?: HotelTier;
+    luxury?: HotelTier;
+  };
 }
 
 export interface DayPlan {

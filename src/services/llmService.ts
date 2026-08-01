@@ -11,6 +11,15 @@ export interface GeneratedTripPlan {
   title: string;
   summary: string;
   coverImage: string;
+  nearestAirport?: string;
+  airportIata?: string;
+  nearestTrainStation?: string;
+  recommendedTransport?: string;
+  hotelTiers?: {
+    budget?: { name: string; priceEstimate: string; description?: string };
+    comfort?: { name: string; priceEstimate: string; description?: string };
+    luxury?: { name: string; priceEstimate: string; description?: string };
+  };
   days: GeneratedDayPlan[];
 }
 
@@ -190,8 +199,8 @@ function buildLLMPrompt(req: LLMPlanRequest): string {
   const travelers = req.travelers || 'couple';
 
   return `
-Tu es le meilleur guide touristique au monde et un créateur d'itinéraires sur mesure.
-Génère un séjour exceptionnel et réaliste pour:
+Tu es le meilleur guide touristique au monde et un expert en logistique de voyage.
+Génère un séjour exceptionnel, réaliste et parfaitement structuré pour:
 - Destination: ${req.destination}
 - Durée: ${daysCount} jours
 - Style/Vibe: ${vibe}
@@ -202,15 +211,37 @@ ${req.customNotes ? `- Remarques: ${req.customNotes}` : ''}
 
 Consignes impératives :
 1. Propose des lieux réels, précis avec leurs vraies adresses approximatives.
-2. Pour chaque jour, inclus 3 à 5 étapes chronologiques bien espacées (matin, midi, après-midi, soir).
-3. Estime un prix réaliste pour chaque étape (ex: "28 €", "7 €", "Gratuit").
-4. Renvoie STRICTEMENT un JSON valide au format exact suivant sans aucun texte autour :
+2. Inclus impérativement les détails de logistique de transport (aéroport le plus proche avec code IATA à 3 lettres, gare SNCF la plus proche, et transport conseillé).
+3. Inclus impérativement 3 suggestions d'hébergement structurées par gamme (Petit budget, Confort, Coup de cœur) avec une estimation du prix par nuit (ex: "55 € / nuit").
+4. Pour chaque jour, inclus 3 à 5 étapes chronologiques bien espacées (matin, midi, après-midi, soir).
+5. Renvoie STRICTEMENT un JSON valide au format exact suivant sans aucun texte markdown autour :
 
 {
   "destination": "${req.destination}",
   "title": "Titre évocateur et attrayant de l'escapade",
   "summary": "Court résumé inspirant du séjour",
   "coverImage": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
+  "nearestAirport": "Genève (GVA)",
+  "airportIata": "GVA",
+  "nearestTrainStation": "Gare d'Annecy",
+  "recommendedTransport": "Train TGV direct + Vélo ou Voiture sur place",
+  "hotelTiers": {
+    "budget": {
+      "name": "Auberge de Jeunesse / Hôtel Ibis Styles",
+      "priceEstimate": "55 € / nuit",
+      "description": "Chambre propre et centrale, idéal pour petit budget."
+    },
+    "comfort": {
+      "name": "Hôtel Boutique & Spa 3-4 étoiles",
+      "priceEstimate": "115 € / nuit",
+      "description": "Hôtel de charme avec vue et petit-déjeuner compris."
+    },
+    "luxury": {
+      "name": "Domaine d'Exception & Relais de Charme",
+      "priceEstimate": "230 € / nuit",
+      "description": "Cadre idyllique haut de gamme avec piscine et spa."
+    }
+  },
   "days": [
     {
       "title": "Jour 1: Intitulé du jour",
@@ -298,11 +329,21 @@ function parseTripPlanJSON(raw: string): GeneratedTripPlan {
   const cleaned = cleanJsonResponse(raw);
   const parsed = JSON.parse(cleaned);
   
+  // Extract airport IATA if present in nearestAirport string (e.g. "Genève (GVA)" -> "GVA")
+  const airportStr = parsed.nearestAirport || '';
+  const iataMatch = airportStr.match(/\b([A-Z]{3})\b/);
+  const airportIata = parsed.airportIata || (iataMatch ? iataMatch[1] : undefined);
+
   return {
     destination: parsed.destination || 'Destination',
     title: parsed.title || 'Escapade sur mesure',
     summary: parsed.summary || 'Un super séjour préparé pour vous.',
     coverImage: parsed.coverImage || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop',
+    nearestAirport: parsed.nearestAirport || undefined,
+    airportIata: airportIata,
+    nearestTrainStation: parsed.nearestTrainStation || undefined,
+    recommendedTransport: parsed.recommendedTransport || undefined,
+    hotelTiers: parsed.hotelTiers || undefined,
     days: (parsed.days || []).map((d: any, idx: number) => ({
       title: d.title || `Jour ${idx + 1}`,
       summary: d.summary || '',
@@ -327,6 +368,40 @@ function parseTripPlanJSON(raw: string): GeneratedTripPlan {
 function simulateOfflineTripGeneration(req: LLMPlanRequest): GeneratedTripPlan {
   const daysCount = req.daysCount || req.durationDays || 2;
   const dest = req.destination || 'Annecy';
+
+  // Smart Logistics Generator for popular destinations
+  let nearestAirport = `${dest} Airport`;
+  let airportIata = 'MRS';
+  let nearestTrainStation = `Gare de ${dest}`;
+  let recommendedTransport = 'Train TGV + Transports locaux';
+
+  const lowerDest = dest.toLowerCase();
+  if (lowerDest.includes('annecy')) {
+    nearestAirport = 'Genève (GVA)';
+    airportIata = 'GVA';
+    nearestTrainStation = 'Gare d\'Annecy';
+    recommendedTransport = 'Train TGV direct ou Voiture';
+  } else if (lowerDest.includes('cassis') || lowerDest.includes('verdon') || lowerDest.includes('marseille') || lowerDest.includes('velaux')) {
+    nearestAirport = 'Marseille Provence (MRS)';
+    airportIata = 'MRS';
+    nearestTrainStation = lowerDest.includes('cassis') ? 'Gare de Cassis' : 'Gare d\'Aix-en-Provence TGV';
+    recommendedTransport = 'TGV + Location de voiture';
+  } else if (lowerDest.includes('rome')) {
+    nearestAirport = 'Rome Fiumicino (FCO)';
+    airportIata = 'FCO';
+    nearestTrainStation = 'Roma Termini';
+    recommendedTransport = 'Vol direct + Métro/Bus';
+  } else if (lowerDest.includes('paris')) {
+    nearestAirport = 'Paris Charles de Gaulle (CDG)';
+    airportIata = 'CDG';
+    nearestTrainStation = 'Gare de Lyon / Gare du Nord';
+    recommendedTransport = 'TGV ou Vol + Métro RER';
+  } else if (lowerDest.includes('kyoto') || lowerDest.includes('japon')) {
+    nearestAirport = 'Kansai Osaka (KIX)';
+    airportIata = 'KIX';
+    nearestTrainStation = 'Gare de Kyoto (Shinkansen)';
+    recommendedTransport = 'Vol long-courrier + Train Shinkansen';
+  }
 
   const sampleDays: GeneratedDayPlan[] = [];
 
@@ -392,6 +467,27 @@ function simulateOfflineTripGeneration(req: LLMPlanRequest): GeneratedTripPlan {
     title: `Échappée Belle à ${dest}`,
     summary: `Un itinéraire sur mesure de ${daysCount} jours conçu pour une expérience inoubliable à ${dest}.`,
     coverImage: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop",
+    nearestAirport,
+    airportIata,
+    nearestTrainStation,
+    recommendedTransport,
+    hotelTiers: {
+      budget: {
+        name: `Auberge & Hôtels Abordables à ${dest}`,
+        priceEstimate: "55 € / nuit",
+        description: "Hébergement propre et bien situé pour petit budget."
+      },
+      comfort: {
+        name: `Hôtel Boutique & Spa 3-4★ à ${dest}`,
+        priceEstimate: "115 € / nuit",
+        description: "Établissement confortable avec petit-déjeuner et vue."
+      },
+      luxury: {
+        name: `Domaine d'Exception & Relais de Charme`,
+        priceEstimate: "230 € / nuit",
+        description: "Expérience inoubliable avec piscine, spa et cadre d'exception."
+      }
+    },
     days: sampleDays
   };
 }

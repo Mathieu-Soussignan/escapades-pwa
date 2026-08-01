@@ -84,7 +84,12 @@ export const SurprisePlannerModal: React.FC<SurprisePlannerModalProps> = ({
         vibe: vibe,
         currency: 'EUR',
         status: 'active',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        nearestAirport: plan.nearestAirport,
+        airportIata: plan.airportIata,
+        nearestTrainStation: plan.nearestTrainStation,
+        recommendedTransport: plan.recommendedTransport,
+        hotelTiers: plan.hotelTiers
       });
 
       for (let idx = 0; idx < plan.days.length; idx++) {

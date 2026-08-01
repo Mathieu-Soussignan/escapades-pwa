@@ -57,7 +57,12 @@ export const AIPlannerWizard: React.FC = () => {
         budgetGoal: budget === 'small' ? 250 : budget === 'medium' ? 600 : 1500,
         currency: 'EUR',
         status: 'active',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        nearestAirport: plan.nearestAirport,
+        airportIata: plan.airportIata,
+        nearestTrainStation: plan.nearestTrainStation,
+        recommendedTransport: plan.recommendedTransport,
+        hotelTiers: plan.hotelTiers
       });
 
       for (let idx = 0; idx < plan.days.length; idx++) {
