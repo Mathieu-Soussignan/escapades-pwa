@@ -1,12 +1,15 @@
 /**
-  God Tier S++ Ultra-Intelligent Affiliate Link Generator for Escapades PWA
-  - Klook Active Approved Travelpayouts Partner (Hotels & Stays): 2-5% reward rate
-  - Klook Trains Active Approved Partner (Trains & Rail): 2-5% reward rate (SNCF, TGV, OUIGO, Eurostar)
-  - GetRentacar Active Approved Travelpayouts Partner (Car Rentals): 10% reward rate, 90-day cookie
-  - GetYourGuide Direct Partner ID: DHWS2LP (Ultra-Intelligent Regional Tourism Resolver)
-  - Aviasales Direct Travelpayouts Marker: 556489
-  - Travelpayouts Account ID: 758018
+  God Tier S++ Ultra-Intelligent & Fully Monetized Affiliate Link Generator for Escapades PWA
+  
+  1. ACTIVITÉS / EXCURSIONS: GetYourGuide Direct Partner ID: DHWS2LP
+  2. HÔTELS & LOGEMENTS: Klook via Travelpayouts (Marker: 556489, Program p=3637)
+  3. TRAINS: Klook Trains via Travelpayouts (Marker: 556489, Program p=3637)
+  4. VOLS: Aviasales via Travelpayouts (Marker: 556489, Program p=100)
+  5. VOITURES & SCOOTERS: GetRentacar via Travelpayouts (Marker: 556489, Program p=2567)
  */
+
+const DEFAULT_MARKER = '556489';
+const DEFAULT_GYG_PARTNER_ID = 'DHWS2LP';
 
 const COUNTRIES_LIST = [
   'italie', 'france', 'espagne', 'portugal', 'grèce', 'grece', 
@@ -203,21 +206,17 @@ export function resolveSmartTrainCity(destination?: string, trainStationName?: s
 }
 
 /**
-  Global Trip Excursions & Activities Hub URL (for the top booking bar)
+  1. ACTIVITÉS / EXCURSIONS: GetYourGuide (Direct Partner ID: DHWS2LP)
  */
 export function getGetYourGuideHubUrl(destination?: string, partnerId: string = ''): string {
   const smartHub = resolveSmartTourismDestination(destination);
-  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
+  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : DEFAULT_GYG_PARTNER_ID;
   return `https://www.getyourguide.com/s/?q=${encodeURIComponent(smartHub)}&partner_id=${encodeURIComponent(pid)}`;
 }
 
-/**
-  1. GETYOURGUIDE (Direct Partner ID DHWS2LP — Individual Activity Ticket Search)
- */
 export function getGetYourGuideUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   const smartHub = resolveSmartTourismDestination(destination, locationName);
 
-  // Extract action keyword if present
   const fullText = (locationName || '').toLowerCase();
   let matchedKeyword = '';
   for (const [key, label] of Object.entries(ACTIVITY_KEYWORDS)) {
@@ -232,22 +231,21 @@ export function getGetYourGuideUrl(locationName: string, destination?: string, p
     searchQuery = `${smartHub} ${matchedKeyword}`;
   }
 
-  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : 'DHWS2LP';
+  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : DEFAULT_GYG_PARTNER_ID;
   return `https://www.getyourguide.com/s/?q=${encodeURIComponent(searchQuery)}&partner_id=${encodeURIComponent(pid)}`;
 }
 
 /**
-  2. HÔTELS / LOGEMENTS (Klook Direct Affiliate Link — Pre-searched by Destination)
+  2. HÔTELS & LOGEMENTS: Klook via Travelpayouts (Marker: 556489, Program ID p=3637)
  */
 export function getBookingUrl(destination?: string, partnerId: string = ''): string {
   const smartHub = resolveSmartTourismDestination(destination);
-  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '758018';
-  const affParams = `aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-${pid}&pid=${pid}&aff_pid=${pid}&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=${pid}`;
-
-  if (smartHub) {
-    return `https://www.klook.com/fr/search/?query=${encodeURIComponent(smartHub)}&${affParams}`;
-  }
-  return `https://www.klook.com/fr/?${affParams}`;
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : DEFAULT_MARKER;
+  const targetUrl = smartHub 
+    ? `https://www.klook.com/fr/search/?query=${encodeURIComponent(smartHub)}`
+    : `https://www.klook.com/fr/`;
+  
+  return `https://tp.media/r?marker=${marker}&p=3637&u=${encodeURIComponent(targetUrl)}`;
 }
 
 export function getKlookHotelUrl(destination: string, partnerId: string = ''): string {
@@ -255,35 +253,34 @@ export function getKlookHotelUrl(destination: string, partnerId: string = ''): s
 }
 
 /**
-  3. VOLS (Aviasales Direct — 100% Approuvé & 0 error 404)
-  Always opens Aviasales official flight search engine in French with active affiliate marker.
+  3. VOLS: Aviasales via Travelpayouts (Marker: 556489, Program ID p=100)
  */
 export function getFlightUrl(_destinationOrIata?: string, partnerId: string = ''): string {
-  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '556489';
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : DEFAULT_MARKER;
   return `https://www.aviasales.fr/?marker=${marker}`;
 }
 
 /**
-  4. TRAINS (Klook Trains Direct — Approved Travelpayouts / Klook Partner ID 758018)
-  Pre-searches Klook for Train & Rail passes for the real train city hub (e.g. Aix-en-Provence for Gorges du Verdon)
+  4. TRAINS: Klook Trains via Travelpayouts (Marker: 556489, Program ID p=3637)
  */
 export function getTrainlineUrl(destination?: string, partnerId: string = '', trainStationName?: string): string {
   const trainCity = resolveSmartTrainCity(destination, trainStationName);
-  const pid = partnerId && partnerId.trim() !== '' ? partnerId.trim() : '758018';
-  const affParams = `aid=api%7C13694%7C7e9e3ecd53f7420b85b141cd3-${pid}&pid=${pid}&aff_pid=${pid}&aff_sid=&aff_adid=1361174&utm_medium=affiliate-alwayson&utm_source=network&utm_campaign=13694&utm_term=${pid}`;
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : DEFAULT_MARKER;
+  const targetUrl = `https://www.klook.com/fr/search/?query=${encodeURIComponent('Train ' + trainCity)}`;
 
-  return `https://www.klook.com/fr/search/?query=${encodeURIComponent('Train ' + trainCity)}&${affParams}`;
+  return `https://tp.media/r?marker=${marker}&p=3637&u=${encodeURIComponent(targetUrl)}`;
 }
 
 /**
-  5. VOITURES & SCOOTERS (GetRentacar Official Travelpayouts Link — 10% reward rate, 90-day cookie)
+  5. VOITURES & SCOOTERS: GetRentacar via Travelpayouts (Marker: 556489, Program ID p=2567)
  */
-export function getCarRentalUrl(_destination?: string, _partnerId: string = ''): string {
-  return `https://getrentacar.tpx.lu/g216fbHt`;
+export function getCarRentalUrl(_destination?: string, partnerId: string = ''): string {
+  const marker = partnerId && partnerId.trim() !== '' ? partnerId.trim() : DEFAULT_MARKER;
+  return `https://getrentacar.tpx.lu/g216fbHt?marker=${marker}`;
 }
 
 /**
-  6. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide & Klook)
+  6. ACTIVITÉS SECONDAIRES & BILLETS (GetYourGuide Fallback)
  */
 export function getKlookActivityUrl(locationName: string, destination?: string, partnerId: string = ''): string {
   return getGetYourGuideUrl(locationName, destination, partnerId);
